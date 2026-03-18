@@ -4,6 +4,8 @@ KCP Client
 Main client for interacting with a KCP node.
 """
 
+from __future__ import annotations
+
 import json
 from typing import Optional
 from pathlib import Path

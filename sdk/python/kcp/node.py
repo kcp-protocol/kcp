@@ -14,6 +14,8 @@ Usage (with HTTP server for P2P/sharing):
     node.serve(port=8800)  # Starts FastAPI server
 """
 
+from __future__ import annotations
+
 import os
 import json
 import base64

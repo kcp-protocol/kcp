@@ -4,6 +4,8 @@ KCP Cryptographic Operations
 Ed25519 signing and verification + SHA-256 content hashing.
 """
 
+from __future__ import annotations
+
 import hashlib
 import json
 from typing import Tuple

@@ -1,0 +1,2 @@
+[console_scripts]
+kcp = kcp.cli:main
