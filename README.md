@@ -2,6 +2,8 @@
 
 > **A new architectural layer for AI-generated knowledge governance**
 
+🌐 *[Versão em Português](README.pt-br.md)*
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Protocol Version](https://img.shields.io/badge/protocol-v0.1-blue.svg)](SPEC.md)
 [![Status](https://img.shields.io/badge/status-experimental-orange.svg)]()
