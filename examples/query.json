@@ -1,0 +1,20 @@
+{
+  "method": "GET",
+  "url": "/kcp/v1/reports",
+  "params": {
+    "q": "customer retention prediction",
+    "tenant_id": "acme-corp",
+    "team": "data-science",
+    "tags": "churn,machine-learning",
+    "from": "2026-01-01T00:00:00Z",
+    "to": "2026-03-31T23:59:59Z",
+    "limit": 10,
+    "offset": 0
+  },
+  "headers": {
+    "Accept": "application/json",
+    "X-KCP-Tenant": "acme-corp",
+    "X-KCP-User": "alice@example.com",
+    "X-KCP-Signature": "ed25519:abcdef1234567890..."
+  }
+}
