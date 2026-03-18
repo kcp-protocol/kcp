@@ -1,6 +1,6 @@
 # KCP Architecture
 
-**Version:** 0.1  
+**Version:** 0.2  
 **Date:** March 2026  
 **Author:** Thiago Silva
 
@@ -8,334 +8,271 @@
 
 ## Overview
 
-KCP is a protocol, not a product. The architecture describes how compliant implementations should be structured — from storage to discovery to security.
+KCP is a protocol, not a product. This document describes the three operating modes, storage backends, P2P sync, and security model.
 
 ---
 
-## 1. Design Principles
+## 1. Three Operating Modes
 
-| Principle | Description |
-|-----------|-------------|
-| **Local-first** | Data lives on the user's device/infra first. Sync is optional. |
-| **Zero-trust** | Every artifact is signed. Every access is verified. No implicit trust. |
-| **Content-addressed** | Artifacts identified by content hash, not location. |
-| **Federated** | No central authority. Any node can join/leave without breaking the network. |
-| **Protocol over product** | KCP defines the contract. Implementations are free to choose their stack. |
+KCP adapts to the user's context — from a single person to a global enterprise.
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                     KCP — Operating Modes                            │
+├────────────────┬────────────────────┬────────────────────────────────┤
+│  🏠 LOCAL       │  🏢 HUB (corporate)  │  🌐 FEDERATION (cross-org)    │
+│                │                    │                                │
+│  SQLite in     │  Central registry  │  Hubs connect to each other   │
+│  ~/.kcp/kcp.db │  (cloud/on-prem)   │  (like email servers)         │
+│                │                    │                                │
+│  P2P direct    │  Agents point to   │  Org A ↔ Org B share          │
+│  between users │  company hub       │  knowledge with ACL control   │
+│                │                    │                                │
+│  Zero config   │  1 config:         │  Hub-to-hub sync with mTLS    │
+│                │  KCP_HUB=url       │                                │
+│                │                    │                                │
+│  User stores   │  User stores       │  Each org controls what       │
+│  locally       │  nothing (or cache)│  it exports/imports           │
+└────────────────┴────────────────────┴────────────────────────────────┘
+```
+
+### Mode Detection (automatic)
+
+```python
+if config.has("kcp_hub"):
+    backend = HubBackend(url=config.kcp_hub)     # Corporate: everything on hub
+elif config.has("kcp_peers"):
+    backend = P2PBackend(peers=config.kcp_peers)  # Community: peer-to-peer
+else:
+    backend = LocalStore(path="~/.kcp/kcp.db")    # Standalone: local SQLite
+```
+
+The user interface is **identical** in all three modes. The backend is transparent.
 
 ---
 
-## 2. Layered Architecture
+## 2. Access Layers
+
+KCP provides three layers of access for different user profiles:
+
+```
+┌─────────────────────────────────────────────────────┐
+│          Layer 1: Natural Language                   │
+│   "publish this", "search for X", "share with Y"   │
+│         (AI assistant skill/plugin)                  │
+├─────────────────────────────────────────────────────┤
+│          Layer 2: Web UI (browser)                  │
+│   Open link → see artifacts, lineage, search        │
+│   (for visual exploration, no install needed)        │
+├─────────────────────────────────────────────────────┤
+│          Layer 3: CLI / SDK (developers)            │
+│   kcp publish, kcp search, kcp sync, Python API     │
+│   (for integration in code and pipelines)            │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. Layered Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                      APPLICATION LAYER                          │
-│  AI Agents, CLI tools, Web apps, IDE extensions                 │
+│  AI Assistants, CLI, Web UI, IDE extensions                     │
 │  (Producers & Consumers of knowledge artifacts)                 │
 └───────────────────────────┬─────────────────────────────────────┘
-                            │ KCP API (REST/gRPC)
+                            │ KCP API (REST + in-process)
 ┌───────────────────────────▼─────────────────────────────────────┐
-│                       KCP CORE ENGINE                           │
+│                       KCP NODE (embedded)                       │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐              │
-│  │   Ingest    │ │  Discovery  │ │  Governance  │              │
-│  │   Engine    │ │   Engine    │ │   Engine     │              │
+│  │   Publish    │ │  Discovery  │ │  Governance  │              │
+│  │   Engine     │ │   Engine    │ │   Engine     │              │
 │  │             │ │             │ │              │              │
 │  │ • Validate  │ │ • FTS Index │ │ • ACL Check  │              │
-│  │ • Sign      │ │ • Vector DB │ │ • Tenant     │              │
-│  │ • Hash      │ │ • Tag Index │ │ • Visibility │              │
-│  │ • Store     │ │ • Semantic  │ │ • Audit Log  │              │
+│  │ • Sign      │ │ • Tag Index │ │ • Tenant     │              │
+│  │ • Hash      │ │ • Semantic  │ │ • Visibility │              │
+│  │ • Store     │ │ • Search    │ │ • Audit Log  │              │
 │  └─────────────┘ └─────────────┘ └─────────────┘              │
-│  ┌─────────────┐ ┌─────────────┐                               │
-│  │   Lineage   │ │   Crypto    │                               │
-│  │   Engine    │ │   Engine    │                               │
-│  │             │ │             │                               │
-│  │ • DAG Track │ │ • Ed25519   │                               │
-│  │ • Ancestry  │ │ • AES-256   │                               │
-│  │ • Impact    │ │ • Key Mgmt  │                               │
-│  └─────────────┘ └─────────────┘                               │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐              │
+│  │   Lineage   │ │   Crypto    │ │    Sync     │              │
+│  │   Engine    │ │   Engine    │ │   Engine     │              │
+│  │             │ │             │ │              │              │
+│  │ • DAG Track │ │ • Ed25519   │ │ • Push/Pull  │              │
+│  │ • Ancestry  │ │ • SHA-256   │ │ • Peer Mgmt  │              │
+│  │ • Derivation│ │ • Key Mgmt  │ │ • Diff Sync  │              │
+│  └─────────────┘ └─────────────┘ └─────────────┘              │
 └───────────────────────────┬─────────────────────────────────────┘
-                            │ Storage Abstraction Layer
+                            │ Storage Abstraction
 ┌───────────────────────────▼─────────────────────────────────────┐
 │                      STORAGE BACKENDS                           │
 │                                                                 │
 │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐           │
-│  │   libsql     │ │    IPFS      │ │  KCP Native  │           │
-│  │  (Phase 1)   │ │  (Phase 2)   │ │  (Phase 3)   │           │
+│  │   SQLite     │ │  Hub (HTTP)  │ │  KCP Native  │           │
+│  │  (default)   │ │  (corporate) │ │  (future)    │           │
 │  │              │ │              │ │              │           │
-│  │ • SQLite     │ │ • DHT        │ │ • Append-log │           │
-│  │ • SQLCipher  │ │ • libp2p     │ │ • Merkle     │           │
-│  │ • Replication│ │ • Pinning    │ │ • Single-file│           │
+│  │ • Zero config│ │ • Postgres   │ │ • Append-log │           │
+│  │ • FTS5 index │ │ • S3 content │ │ • Merkle DAG │           │
+│  │ • Portable   │ │ • SSO/OIDC   │ │ • Single-file│           │
+│  │ • sql.js OK  │ │ • Audit trail│ │ • Verifiable │           │
 │  └──────────────┘ └──────────────┘ └──────────────┘           │
 │                                                                 │
 └───────────────────────────┬─────────────────────────────────────┘
-                            │ P2P Sync Layer
+                            │ P2P / Federation
 ┌───────────────────────────▼─────────────────────────────────────┐
-│                    FEDERATION NETWORK                            │
+│                    NETWORK LAYER                                │
 │                                                                 │
 │  ┌────────┐     ┌────────┐     ┌────────┐     ┌────────┐     │
-│  │ Node A │◄───►│ Node B │◄───►│ Node C │◄───►│ Node D │     │
-│  │(Corp 1)│     │(Corp 2)│     │(User)  │     │(Corp 3)│     │
+│  │ Node A │◄───►│ Node B │◄───►│ Hub C  │◄───►│ Hub D  │     │
+│  │(laptop)│     │(laptop)│     │(corp)  │     │(corp)  │     │
 │  └────────┘     └────────┘     └────────┘     └────────┘     │
 │                                                                 │
-│  Discovery: Kademlia DHT (libp2p-kad-dht)                      │
-│  Transport: QUIC / TCP / WebRTC                                 │
-│  Sync: Merkle DAG diff (similar to Git)                         │
+│  P2P: Direct HTTP sync (with optional tunnel for NAT)          │
+│  Federation: Hub-to-hub sync with mTLS + ACL filtering         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Data Flow
+## 4. Data Flow
 
-### 3.1 Publishing a Knowledge Artifact
-
-```
-User/Agent                    KCP Node                      Network
-    │                            │                              │
-    │  POST /kcp/v1/reports      │                              │
-    │  {payload + content}       │                              │
-    │───────────────────────────►│                              │
-    │                            │                              │
-    │                     ┌──────┴──────┐                      │
-    │                     │ 1. Validate  │                      │
-    │                     │    schema    │                      │
-    │                     ├─────────────┤                      │
-    │                     │ 2. Verify    │                      │
-    │                     │    signature │                      │
-    │                     ├─────────────┤                      │
-    │                     │ 3. Check ACL │                      │
-    │                     │    + tenant  │                      │
-    │                     ├─────────────┤                      │
-    │                     │ 4. Hash      │                      │
-    │                     │    content   │                      │
-    │                     ├─────────────┤                      │
-    │                     │ 5. Generate  │                      │
-    │                     │    embedding │                      │
-    │                     ├─────────────┤                      │
-    │                     │ 6. Store     │                      │
-    │                     │    (backend) │                      │
-    │                     ├─────────────┤                      │
-    │                     │ 7. Index     │                      │
-    │                     │    (FTS+Vec) │                      │
-    │                     └──────┬──────┘                      │
-    │                            │                              │
-    │  201 Created               │  Announce to DHT             │
-    │◄───────────────────────────│─────────────────────────────►│
-    │                            │                              │
-```
-
-### 3.2 Discovering Knowledge
+### 4.1 Publishing (embedded node, no server)
 
 ```
-User/Agent                    KCP Node                      Network
-    │                            │                              │
-    │  GET /kcp/v1/reports       │                              │
-    │  ?q=churn+prediction       │                              │
-    │───────────────────────────►│                              │
-    │                            │                              │
-    │                     ┌──────┴──────┐                      │
-    │                     │ 1. Parse    │                      │
-    │                     │    query    │                      │
-    │                     ├─────────────┤                      │
-    │                     │ 2. Check    │                      │
-    │                     │    ACL      │                      │
-    │                     ├─────────────┤                      │
-    │                     │ 3. Local    │  4. DHT Lookup       │
-    │                     │    search   │─────────────────────►│
-    │                     ├─────────────┤                      │
-    │                     │ 5. Merge    │◄─────────────────────│
-    │                     │    results  │  (remote results)    │
-    │                     ├─────────────┤                      │
-    │                     │ 6. Rank by  │                      │
-    │                     │    relevance│                      │
-    │                     └──────┬──────┘                      │
-    │                            │                              │
-    │  200 OK {results}          │                              │
-    │◄───────────────────────────│                              │
+User/Agent                    KCP Node (in-process)
+    │                              │
+    │  node.publish(title, content)│
+    │─────────────────────────────►│
+    │                              │
+    │                       ┌──────┴──────┐
+    │                       │ 1. Hash     │
+    │                       │    content  │
+    │                       ├─────────────┤
+    │                       │ 2. Create   │
+    │                       │    artifact │
+    │                       ├─────────────┤
+    │                       │ 3. Sign     │
+    │                       │    Ed25519  │
+    │                       ├─────────────┤
+    │                       │ 4. Store    │
+    │                       │    SQLite   │
+    │                       ├─────────────┤
+    │                       │ 5. Index    │
+    │                       │    FTS5     │
+    │                       ├─────────────┤
+    │                       │ 6. Audit    │
+    │                       │    log      │
+    │                       └──────┬──────┘
+    │                              │
+    │  ← KnowledgeArtifact         │
+    │◄─────────────────────────────│
+```
+
+### 4.2 P2P Sync
+
+```
+Node A                                         Node B
+  │                                               │
+  │  GET /kcp/v1/sync/list?since=2026-03-01       │
+  │──────────────────────────────────────────────►│
+  │                                               │
+  │  ← {ids: ["abc", "def", ...]}                  │
+  │◄──────────────────────────────────────────────│
+  │                                               │
+  │  (filter out IDs we already have)             │
+  │                                               │
+  │  GET /kcp/v1/sync/artifact/abc                │
+  │──────────────────────────────────────────────►│
+  │                                               │
+  │  ← {artifact + content_b64}                    │
+  │◄──────────────────────────────────────────────│
+  │                                               │
+  │  (verify signature → store locally)           │
 ```
 
 ---
 
-## 4. Storage Architecture
+## 5. Corporate Hub Architecture
 
-### 4.1 Storage Abstraction
-
-KCP defines an interface. Implementations choose the backend.
+For organizations that want centralized knowledge governance:
 
 ```
-Interface: KCPStorage
-├── store(artifact) → content_hash
-├── retrieve(content_hash) → artifact
-├── delete(content_hash) → bool
-├── list(filters) → [artifact_metadata]
-└── sync(peer) → sync_result
+┌────────────────────────────────────────────────────────┐
+│                    KCP Hub (deployed)                    │
+│          Docker / Kubernetes / Cloud VM                  │
+│                                                         │
+│   ┌──────────┐  ┌──────────────┐  ┌────────────────┐  │
+│   │ REST API │  │  PostgreSQL  │  │ Object Storage │  │
+│   │ (FastAPI) │  │  (metadata   │  │ (S3/GCS/MinIO) │  │
+│   │          │  │   + FTS)     │  │ (large content)│  │
+│   └─────┬────┘  └──────────────┘  └────────────────┘  │
+│         │                                               │
+│   ┌─────┴───────────────────────────────────┐          │
+│   │  SSO/OIDC · ACL · Audit · Rate Limit    │          │
+│   └─────────────────────────────────────────┘          │
+└────────────────────────────────────────────────────────┘
+         ▲              ▲              ▲
+         │              │              │
+    ┌────┴──┐     ┌────┴──┐     ┌────┴──┐
+    │ Alice │     │  Bob  │     │ Carol │
+    │(assist)│    │(assist)│    │ (CLI) │
+    └───────┘     └───────┘     └───────┘
+
+  Users don't store anything locally.
+  Hub handles storage, search, lineage, ACL.
 ```
 
-### 4.2 Phase 1: libsql (MVP)
+### Hub Storage Tiers
 
-```sql
--- Metadata table
-CREATE TABLE kcp_artifacts (
-    id TEXT PRIMARY KEY,
-    version TEXT NOT NULL DEFAULT '1',
-    user_id TEXT NOT NULL,
-    tenant_id TEXT NOT NULL,
-    team TEXT,
-    tags TEXT,  -- JSON array
-    source TEXT,
-    created_at TEXT NOT NULL,
-    format TEXT NOT NULL,
-    visibility TEXT NOT NULL DEFAULT 'private',
-    title TEXT NOT NULL,
-    summary TEXT,
-    lineage TEXT,  -- JSON object
-    content_hash TEXT NOT NULL UNIQUE,
-    content_url TEXT,
-    signature TEXT NOT NULL,
-    acl TEXT,  -- JSON object
-    deleted_at TEXT  -- soft delete
-);
-
--- Full-text search index
-CREATE VIRTUAL TABLE kcp_fts USING fts5(
-    title, summary, tags,
-    content='kcp_artifacts',
-    content_rowid='rowid'
-);
-
--- Vector embeddings (via sqlite-vec extension)
-CREATE VIRTUAL TABLE kcp_vec USING vec0(
-    embedding float[384]
-);
-
--- Content storage (BLOBs for small files, file references for large)
-CREATE TABLE kcp_content (
-    content_hash TEXT PRIMARY KEY,
-    content BLOB,  -- NULL if stored externally
-    external_url TEXT,  -- set if stored in S3/IPFS/filesystem
-    size_bytes INTEGER NOT NULL,
-    encrypted INTEGER NOT NULL DEFAULT 1
-);
-
--- Audit log
-CREATE TABLE kcp_audit (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    action TEXT NOT NULL,  -- 'publish', 'read', 'delete', 'search'
-    artifact_id TEXT,
-    details TEXT  -- JSON
-);
-```
-
-### 4.3 Phase 3: KCP Native Format (.kcp file)
-
-**Design Goals:**
-- Single file (portable, shareable)
-- Append-only (immutable history)
-- Self-contained (metadata + content + index)
-- Verifiable (Merkle tree + signatures)
-
-```
-┌─────────────────────────────────────────┐
-│  KCP File Header (64 bytes)             │
-│  • Magic: "KCP\x00" (4 bytes)          │
-│  • Version: uint16                       │
-│  • Tenant ID hash: sha256 (32 bytes)    │
-│  • Created: uint64 (unix timestamp)      │
-│  • Chunk count: uint32                   │
-│  • Index offset: uint64                  │
-│  • Merkle root: sha256 (32 bytes)       │
-├─────────────────────────────────────────┤
-│  Chunk 0 (variable length)              │
-│  • Length: uint32                         │
-│  • Type: uint8 (0=metadata, 1=content)  │
-│  • Data: CBOR-encoded payload           │
-│  • Signature: Ed25519 (64 bytes)        │
-│  • Hash: sha256 (32 bytes)              │
-├─────────────────────────────────────────┤
-│  Chunk 1...N                            │
-│  (same structure as Chunk 0)            │
-├─────────────────────────────────────────┤
-│  Index Section                          │
-│  • Inverted index (FTS)                 │
-│  • Tag index                             │
-│  • Merkle tree nodes                     │
-│  • Offset table (chunk_id → byte_offset)│
-├─────────────────────────────────────────┤
-│  Footer (32 bytes)                      │
-│  • Merkle root (redundant, for verify)  │
-│  • Total size: uint64                    │
-│  • Magic: "\x00KCP" (4 bytes)           │
-└─────────────────────────────────────────┘
-```
+| Org Size | Backend | Est. Cost |
+|----------|---------|-----------|
+| Startup / small team | SQLite + persistent volume | ~$0 |
+| Medium company | PostgreSQL + S3 | ~$50/mo |
+| Enterprise | PostgreSQL + S3 + Redis + Elasticsearch | ~$200-500/mo |
+| Air-gapped / on-prem | PostgreSQL + MinIO | Own infra |
 
 ---
 
-## 5. Security Architecture
+## 6. Security
 
-### 5.1 Encryption Layers
+### Signing & Verification
 
-```
-Layer 1 — Transport:  TLS 1.3 (node-to-node communication)
-Layer 2 — Storage:    AES-256-GCM (at-rest encryption per tenant)
-Layer 3 — Content:    Per-artifact encryption (optional, for Tier 3/private)
-```
-
-### 5.2 Key Hierarchy
+Every artifact is signed with Ed25519 at creation time:
 
 ```
-Root Key (per tenant)
-├── Tenant Encryption Key (AES-256) → encrypts storage
-├── Team Keys (derived)
-│   ├── team-engineering → derived from root + "engineering"
-│   └── team-data-science → derived from root + "data-science"
-└── User Keypairs (Ed25519)
-    ├── alice@example.com → signs artifacts
-    └── bob@example.com → signs artifacts
+Artifact JSON (canonical, sorted keys)
+    │
+    ▼
+Ed25519.sign(private_key) → 64-byte signature (hex)
+    │
+    ▼
+Stored in artifact.signature field
+    │
+    ▼
+Anyone with public_key can verify authenticity
 ```
 
-### 5.3 Zero-Knowledge Tenant Isolation
+### Key Hierarchy
 
 ```
-Tenant A's data is encrypted with Tenant A's key.
-Tenant B CANNOT read Tenant A's data, even if:
-  - They have physical access to the storage
-  - They compromise the KCP node software
-  - They intercept network traffic
-
-Only Tenant A's key holders can decrypt.
+Node keypair (Ed25519, auto-generated)
+├── ~/.kcp/keys/private.key  (600 permissions, never leaves machine)
+└── ~/.kcp/keys/public.key   (shared with peers for verification)
 ```
 
----
-
-## 6. Federation Protocol
-
-### 6.1 Node Types
-
-| Type | Description | Example |
-|------|-------------|---------|
-| **Full Node** | Stores artifacts + participates in DHT | Corporate server |
-| **Light Node** | Queries DHT but stores locally only | Developer laptop |
-| **Relay Node** | Helps with NAT traversal, no storage | Public bootstrap |
-
-### 6.2 Peer Discovery Sequence
+### Content Integrity
 
 ```
-1. New node starts
-2. Connects to bootstrap relay nodes (hardcoded or configured)
-3. Announces tenant_id + available tags to DHT
-4. Receives peer list from DHT
-5. Establishes direct connections (QUIC preferred)
-6. Begins sync (Merkle DAG diff)
+Content bytes → SHA-256 → content_hash (stored in artifact metadata)
 ```
 
-### 6.3 Conflict Resolution
+Anyone can verify that content hasn't been tampered with by rehashing.
 
-KCP uses **Last-Writer-Wins (LWW)** with append-only semantics:
-- Artifacts are immutable once published
-- Updates create new versions (with `parent_reports` pointing to previous)
-- Deletes are soft (tombstone marker)
-- No merge conflicts possible (append-only log)
+### Tenant Isolation (Hub mode)
+
+In Hub deployments, tenants are isolated by:
+- Separate encryption keys per tenant
+- ACL enforcement on every query
+- Audit logging of all access
 
 ---
 
@@ -343,25 +280,27 @@ KCP uses **Last-Writer-Wins (LWW)** with append-only semantics:
 
 | Decision | Rationale | Date |
 |----------|-----------|------|
-| Ed25519 over RSA | Faster, smaller keys, modern standard | 2026-03 |
-| CBOR over JSON for storage | Binary format, smaller, faster parsing | 2026-03 |
-| Append-only over mutable | Eliminates conflicts, enables audit trail | 2026-03 |
-| Kademlia DHT over gossip | Proven at scale (BitTorrent, IPFS) | 2026-03 |
-| libsql for MVP | Familiar SQL, zero-config, replication built-in | 2026-03 |
-| MIT License | Maximum adoption, no friction | 2026-03 |
+| SQLite for local storage | Zero config, portable, sql.js for browser | 2026-03 |
+| Ed25519 over RSA | Faster, smaller keys (32 bytes), modern | 2026-03 |
+| Embedded node (in-process) | No separate server = zero infra for users | 2026-03 |
+| Three modes (local/hub/fed) | Scales from individual to enterprise | 2026-03 |
+| HTTP sync over custom protocol | Simpler, works through firewalls/tunnels | 2026-03 |
+| Append-only artifacts | No conflicts, full audit trail, immutable | 2026-03 |
+| MIT License | Maximum adoption, zero friction | 2026-03 |
 
 ---
 
 ## 8. Performance Targets
 
-| Metric | Target | Notes |
-|--------|--------|-------|
-| Publish latency | < 100ms | Local storage, async DHT announce |
-| Search latency (local) | < 50ms | FTS5 + vector index |
-| Search latency (federated) | < 500ms | DHT lookup + remote fetch |
-| Storage overhead | < 5% | Metadata + index vs raw content |
-| Max artifact size | 100MB | Larger files use external storage |
-| Max artifacts per node | 10M+ | libsql handles well |
+| Metric | Target |
+|--------|--------|
+| Publish latency (local) | < 10ms |
+| Search latency (local FTS) | < 50ms |
+| Search latency (hub) | < 200ms |
+| Sync (P2P, per artifact) | < 100ms |
+| Max artifact size | 100MB |
+| Max artifacts per node | 10M+ |
+| SQLite DB overhead | < 5% vs raw content |
 
 ---
 

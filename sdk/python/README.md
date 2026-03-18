@@ -1,112 +1,129 @@
 # KCP Python SDK
 
-Reference implementation of the Knowledge Context Protocol client.
+Reference implementation of the Knowledge Context Protocol.
 
-## Status: Alpha (v0.1.0)
-
-Core models, crypto (Ed25519 signing), and client are implemented.
-Server-side (KCP Node) is planned for Phase 2.
-
-## Installation
+## Install
 
 ```bash
-# Basic (models only, no dependencies)
-pip install -e .
-
-# With crypto support (Ed25519 signatures)
-pip install -e ".[crypto]"
-
-# With HTTP support (connect to KCP nodes)
-pip install -e ".[http]"
-
-# Everything
-pip install -e ".[all]"
+pip install kcp                    # Core (local storage + crypto)
+pip install kcp[server]            # + HTTP server for P2P sharing
+pip install kcp[all]               # Everything
 ```
 
 ## Quick Start
 
+### Embedded Node (no server needed)
+
 ```python
-from kcp import KCPClient, Lineage
-from kcp.crypto import generate_keypair
+from kcp import KCPNode
 
-# Generate keypair (one-time)
-private_key, public_key = generate_keypair()
+# Initialize (auto-generates keys, creates SQLite DB)
+node = KCPNode(user_id="alice@acme.com", tenant_id="acme-corp")
 
-# Initialize client
-client = KCPClient(
-    node_url="http://localhost:8080",
-    tenant_id="acme-corp",
-    user_id="alice@example.com",
-    private_key=private_key,
-    team="data-science"
+# Publish a knowledge artifact
+artifact = node.publish(
+    title="JWT Authentication Best Practices",
+    content="## JWT Auth\n\nAlways validate the `exp` claim...",
+    format="markdown",
+    tags=["security", "jwt", "authentication"],
+    summary="Guide for secure JWT implementation",
 )
-
-# Publish a report
-artifact = client.publish(
-    title="Q1 Customer Churn Analysis",
-    content=open("report.html", "rb").read(),
-    format="html",
-    tags=["churn", "analytics", "ml"],
-    visibility="team",
-    summary="Predictive model with 87% accuracy",
-    lineage=Lineage(
-        query="Predict customer churn using 12 months of history",
-        data_sources=["postgres://analytics/customers"],
-        agent="jupyter-agent-v1.2.3"
-    )
-)
-
 print(f"Published: {artifact.id}")
-print(f"Hash: {artifact.content_hash}")
 
-# Search for reports
-results = client.search(
-    query="customer retention",
-    tags=["analytics"],
-    limit=10
+# Search
+results = node.search("authentication")
+for r in results.results:
+    print(f"  {r.title} ({r.format})")
+
+# Lineage tracking (knowledge derivation)
+derived = node.publish(
+    title="OAuth2 + JWT Integration",
+    content="Building on JWT best practices...",
+    format="markdown",
+    tags=["security", "oauth2"],
+    derived_from=artifact.id,  # Links to parent
 )
 
-for r in results.results:
-    print(f"  [{r.relevance:.0%}] {r.title}")
+# View lineage chain
+chain = node.lineage(derived.id)
+for step in chain:
+    print(f"  → {step['title']} by {step['author']}")
 ```
 
-## Crypto Operations
+### HTTP Server (for P2P sharing)
 
 ```python
-from kcp.crypto import generate_keypair, sign_artifact, verify_artifact, hash_content
-
-# Generate Ed25519 keypair
-private_key, public_key = generate_keypair()
-
-# Hash content
-content_hash = hash_content(b"Hello, KCP!")
-
-# Sign an artifact payload
-payload = {"id": "...", "title": "...", "tenant_id": "..."}
-signature = sign_artifact(payload, private_key)
-
-# Verify signature
-payload["signature"] = signature
-is_valid = verify_artifact(payload, public_key)
+node = KCPNode(user_id="alice@acme.com")
+node.serve(port=8800)
+# Web UI at http://localhost:8800/ui
+# API at http://localhost:8800/kcp/v1/
 ```
 
-## Project Structure
+### CLI
+
+```bash
+# Initialize
+kcp init
+
+# Publish a file
+kcp publish --title "My Analysis" --tags "data,ml" report.md
+
+# Search
+kcp search "machine learning"
+
+# List artifacts
+kcp list
+
+# Show lineage
+kcp lineage <artifact-id>
+
+# Start server for P2P
+kcp serve --port 8800
+
+# Add a peer and sync
+kcp peer add https://colleague.trycloudflare.com
+kcp sync https://colleague.trycloudflare.com
+
+# Stats
+kcp stats
+```
+
+### Corporate Hub
+
+```python
+from kcp import KCPNode
+
+# Just set the hub URL — everything routes there transparently
+import os
+os.environ["KCP_HUB"] = "https://kcp.acme-corp.internal"
+
+node = KCPNode(user_id="alice@acme.com", tenant_id="acme-corp")
+node.publish(...)  # Goes to hub, not local storage
+```
+
+## Architecture
 
 ```
-sdk/python/
-├── kcp/
-│   ├── __init__.py    # Package exports
-│   ├── models.py      # KnowledgeArtifact, Lineage, ACL, SearchResult
-│   ├── crypto.py      # Ed25519 signing, SHA-256 hashing
-│   └── client.py      # KCPClient (HTTP client for KCP nodes)
-├── pyproject.toml     # Package config
-└── README.md          # This file
+┌────────────────┬───────────────────┬──────────────────────┐
+│  🏠 LOCAL       │  🏢 HUB (corp)     │  🌐 FEDERATION       │
+│  SQLite local  │  Central server   │  Hub-to-hub sync     │
+│  Zero config   │  1 env var        │  Cross-org sharing   │
+│  P2P direct    │  SSO/ACL/Audit    │  mTLS + ACL control  │
+└────────────────┴───────────────────┴──────────────────────┘
 ```
 
-## Dependencies
+## Modules
 
-| Package | Required For | Install Extra |
-|---------|-------------|---------------|
-| — | Models, basic usage | (none) |
-| `cryptography` | Ed25519 signing | `pip install kcp[crypto]` |
-| `httpx` | HTTP client | `pip install kcp[http]` |
+| Module | Description |
+|--------|-------------|
+| `kcp.node` | Embedded KCP node (main entry point) |
+| `kcp.store` | SQLite storage backend |
+| `kcp.hub` | HTTP client for corporate hubs |
+| `kcp.crypto` | Ed25519 signing + SHA-256 hashing |
+| `kcp.models` | Data models (KnowledgeArtifact, Lineage, ACL) |
+| `kcp.client` | Low-level HTTP client |
+| `kcp.cli` | Command-line interface |
+
+## License
+
+MIT — see [LICENSE](../../LICENSE)

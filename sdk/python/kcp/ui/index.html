@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KCP Node</title>
+<style>
+:root {
+  --bg: #0B0E14; --card: #151922; --border: #1E2530;
+  --text: #E8E8ED; --muted: #6B7280; --accent: #22C55E;
+  --accent2: #3B82F6; --danger: #EF4444; --radius: 12px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+a { color: var(--accent2); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+/* Header */
+header { background: var(--card); border-bottom: 1px solid var(--border); padding: 16px 0; margin-bottom: 24px; }
+header .container { display: flex; align-items: center; justify-content: space-between; }
+.logo { font-size: 1.4em; font-weight: 700; }
+.logo span { color: var(--accent); }
+.stats { display: flex; gap: 20px; font-size: 0.85em; color: var(--muted); }
+.stats .num { color: var(--text); font-weight: 600; }
+
+/* Nav tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--card); border-radius: var(--radius); padding: 4px; }
+.tab { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.9em; color: var(--muted); transition: all 0.2s; border: none; background: none; }
+.tab:hover { color: var(--text); }
+.tab.active { background: var(--accent); color: #000; font-weight: 600; }
+
+/* Panel */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* Cards */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; transition: border-color 0.2s; }
+.card:hover { border-color: var(--accent); }
+.card-title { font-weight: 600; font-size: 1.05em; margin-bottom: 4px; }
+.card-meta { font-size: 0.8em; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+.card-summary { font-size: 0.9em; color: #aaa; margin-top: 6px; }
+.tag { display: inline-block; background: rgba(34,197,94,0.12); color: var(--accent); font-size: 0.75em; padding: 2px 8px; border-radius: 20px; margin-right: 4px; }
+
+/* Search */
+.search-bar { display: flex; gap: 8px; margin-bottom: 20px; }
+.search-bar input { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 0.95em; outline: none; }
+.search-bar input:focus { border-color: var(--accent); }
+.btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; }
+.btn-primary { background: var(--accent); color: #000; }
+.btn-primary:hover { background: #16a34a; }
+.btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+
+/* Publish form */
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 0.85em; color: var(--muted); margin-bottom: 4px; }
+.form-group input, .form-group textarea, .form-group select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; color: var(--text); font-size: 0.9em; outline: none; }
+.form-group input:focus, .form-group textarea:focus { border-color: var(--accent); }
+textarea { min-height: 150px; resize: vertical; font-family: 'JetBrains Mono', monospace; }
+
+/* Lineage */
+.lineage-chain { padding-left: 20px; }
+.lineage-item { position: relative; padding: 12px 0 12px 24px; border-left: 2px solid var(--border); }
+.lineage-item:last-child { border-left-color: transparent; }
+.lineage-item::before { content: ''; position: absolute; left: -6px; top: 16px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.lineage-item.current::before { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+
+/* Peers */
+.peer-card { display: flex; align-items: center; gap: 12px; }
+.peer-status { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.peer-status.offline { background: var(--muted); }
+
+/* Detail modal */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; justify-content: center; align-items: start; padding: 40px 20px; overflow-y: auto; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; max-width: 800px; width: 100%; padding: 24px; }
+.modal-close { float: right; background: none; border: none; color: var(--muted); font-size: 1.5em; cursor: pointer; }
+.modal-close:hover { color: var(--text); }
+.content-preview { background: var(--bg); border-radius: 8px; padding: 16px; margin-top: 12px; font-family: monospace; font-size: 0.85em; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+
+/* Empty state */
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty h3 { font-size: 1.2em; margin-bottom: 8px; color: var(--text); }
+
+/* Toast */
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--accent); color: #000; padding: 12px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9em; z-index: 200; display: none; animation: slideUp 0.3s ease; }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+@media (max-width: 600px) {
+  .stats { display: none; }
+  .tabs { overflow-x: auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="logo">⚛ KCP <span>Node</span></div>
+    <div class="stats">
+      <div><span class="num" id="stat-artifacts">0</span> artifacts</div>
+      <div><span class="num" id="stat-peers">0</span> peers</div>
+      <div><span class="num" id="stat-size">0 B</span> stored</div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" data-tab="artifacts">📄 Artifacts</button>
+    <button class="tab" data-tab="publish">✏️ Publish</button>
+    <button class="tab" data-tab="peers">🔗 Peers</button>
+    <button class="tab" data-tab="about">ℹ️ About</button>
+  </div>
+
+  <!-- Artifacts Panel -->
+  <div class="panel active" id="panel-artifacts">
+    <div class="search-bar">
+      <input type="text" id="search-input" placeholder="Search artifacts..." />
+      <button class="btn btn-primary" onclick="doSearch()">Search</button>
+    </div>
+    <div id="artifacts-list"></div>
+  </div>
+
+  <!-- Publish Panel -->
+  <div class="panel" id="panel-publish">
+    <div class="card">
+      <h3 style="margin-bottom:16px">Publish Knowledge Artifact</h3>
+      <div class="form-group">
+        <label>Title *</label>
+        <input type="text" id="pub-title" placeholder="e.g., JWT Authentication Best Practices" />
+      </div>
+      <div class="form-group">
+        <label>Format</label>
+        <select id="pub-format">
+          <option value="markdown">Markdown</option>
+          <option value="text">Plain Text</option>
+          <option value="html">HTML</option>
+          <option value="json">JSON</option>
+          <option value="csv">CSV</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tags (comma separated)</label>
+        <input type="text" id="pub-tags" placeholder="e.g., security, jwt, authentication" />
+      </div>
+      <div class="form-group">
+        <label>Summary</label>
+        <input type="text" id="pub-summary" placeholder="Brief description..." />
+      </div>
+      <div class="form-group">
+        <label>Derived From (artifact ID, optional)</label>
+        <input type="text" id="pub-derived" placeholder="Parent artifact ID for lineage tracking" />
+      </div>
+      <div class="form-group">
+        <label>Content *</label>
+        <textarea id="pub-content" placeholder="Paste or type content here..."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="doPublish()">🚀 Publish</button>
+    </div>
+  </div>
+
+  <!-- Peers Panel -->
+  <div class="panel" id="panel-peers">
+    <div class="search-bar">
+      <input type="text" id="peer-url" placeholder="https://peer-node.trycloudflare.com" />
+      <button class="btn btn-primary" onclick="addPeer()">Add Peer</button>
+    </div>
+    <div id="peers-list"></div>
+  </div>
+
+  <!-- About Panel -->
+  <div class="panel" id="panel-about">
+    <div class="card">
+      <h3>Knowledge Context Protocol (KCP)</h3>
+      <p style="color:var(--muted);margin:12px 0">
+        KCP proposes a new "Layer 8" above the OSI Application Layer for governance,
+        persistence, discovery, and lineage tracking of AI-generated knowledge.
+      </p>
+      <p style="margin:8px 0"><strong>Node ID:</strong> <span id="about-node-id" style="font-family:monospace;font-size:0.85em"></span></p>
+      <p style="margin:8px 0"><strong>User:</strong> <span id="about-user"></span></p>
+      <p style="margin:8px 0"><strong>Tenant:</strong> <span id="about-tenant"></span></p>
+      <p style="margin:12px 0">
+        <a href="https://github.com/tgosoul2019/kcp" target="_blank">📦 GitHub Repository</a> ·
+        <a href="/kcp/v1/health" target="_blank">🔧 API Health</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = window.location.origin;
+
+// ─── Tabs ──────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ─── Load data ─────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch(API + '/kcp/v1/health');
+    const d = await r.json();
+    document.getElementById('stat-artifacts').textContent = d.artifacts || 0;
+    document.getElementById('stat-peers').textContent = d.peers || 0;
+    document.getElementById('stat-size').textContent = d.content_size_human || '0 B';
+    document.getElementById('about-node-id').textContent = d.node_id || '';
+    document.getElementById('about-user').textContent = d.user_id || '';
+    document.getElementById('about-tenant').textContent = d.tenant_id || '';
+  } catch(e) { console.error('Stats error:', e); }
+}
+
+async function loadArtifacts(query) {
+  try {
+    const url = query
+      ? API + '/kcp/v1/artifacts?q=' + encodeURIComponent(query)
+      : API + '/kcp/v1/artifacts?limit=50';
+    const r = await fetch(url);
+    const d = await r.json();
+    const items = d.artifacts || d.results || [];
+    const el = document.getElementById('artifacts-list');
+
+    if (!items.length) {
+      el.innerHTML = '<div class="empty"><h3>No artifacts yet</h3><p>Publish your first knowledge artifact using the Publish tab or CLI.</p></div>';
+      return;
+    }
+
+    el.innerHTML = items.map(a => `
+      <div class="card" onclick="showDetail('${a.id}')" style="cursor:pointer">
+        <div class="card-title">${esc(a.title)}</div>
+        <div class="card-meta">
+          <span>📄 ${a.format}</span>
+          <span>👤 ${esc(a.user_id)}</span>
+          <span>📅 ${(a.timestamp || a.created_at || '').substring(0,10)}</span>
+          <span>🔒 ${a.visibility}</span>
+        </div>
+        ${a.tags && a.tags.length ? '<div style="margin-top:6px">' + a.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('') + '</div>' : ''}
+        ${a.summary ? `<div class="card-summary">${esc(a.summary)}</div>` : ''}
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('artifacts-list').innerHTML = '<div class="empty"><h3>Could not load artifacts</h3><p>Is the node running?</p></div>';
+  }
+}
+
+async function loadPeers() {
+  try {
+    const r = await fetch(API + '/kcp/v1/peers');
+    const d = await r.json();
+    const peers = d.peers || [];
+    const el = document.getElementById('peers-list');
+
+    if (!peers.length) {
+      el.innerHTML = '<div class="empty"><h3>No peers connected</h3><p>Add a peer URL to start syncing knowledge.</p></div>';
+      return;
+    }
+
+    el.innerHTML = peers.map(p => `
+      <div class="card">
+        <div class="peer-card">
+          <span class="peer-status"></span>
+          <div>
+            <div class="card-title">${esc(p.name || p.url)}</div>
+            <div class="card-meta">
+              <span>${esc(p.url)}</span>
+              <span>Last seen: ${(p.last_seen || 'never').substring(0,19)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+// ─── Actions ───────────────────────────────────────────────
+function doSearch() {
+  const q = document.getElementById('search-input').value;
+  loadArtifacts(q);
+}
+
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+
+async function doPublish() {
+  const title = document.getElementById('pub-title').value.trim();
+  const content = document.getElementById('pub-content').value.trim();
+  if (!title || !content) { toast('Title and content are required', true); return; }
+
+  const body = {
+    title,
+    content,
+    format: document.getElementById('pub-format').value,
+    tags: document.getElementById('pub-tags').value.split(',').map(t => t.trim()).filter(Boolean),
+    summary: document.getElementById('pub-summary').value.trim(),
+    visibility: 'public',
+  };
+  const derived = document.getElementById('pub-derived').value.trim();
+  if (derived) body.derived_from = derived;
+
+  try {
+    const r = await fetch(API + '/kcp/v1/artifacts', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
+    });
+    if (r.ok) {
+      toast('✅ Artifact published!');
+      document.getElementById('pub-title').value = '';
+      document.getElementById('pub-content').value = '';
+      document.getElementById('pub-tags').value = '';
+      document.getElementById('pub-summary').value = '';
+      document.getElementById('pub-derived').value = '';
+      loadStats();
+      loadArtifacts();
+      // Switch to artifacts tab
+      document.querySelector('[data-tab="artifacts"]').click();
+    } else {
+      toast('❌ Publish failed', true);
+    }
+  } catch(e) { toast('❌ ' + e.message, true); }
+}
+
+async function addPeer() {
+  const url = document.getElementById('peer-url').value.trim();
+  if (!url) return;
+  try {
+    await fetch(API + '/kcp/v1/peers', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ url, name: '' }),
+    });
+    toast('✅ Peer added');
+    document.getElementById('peer-url').value = '';
+    loadPeers();
+    loadStats();
+  } catch(e) { toast('❌ ' + e.message, true); }
+}
+
+async function showDetail(id) {
+  try {
+    const [artR, linR] = await Promise.all([
+      fetch(API + '/kcp/v1/artifacts/' + id),
+      fetch(API + '/kcp/v1/artifacts/' + id + '/lineage'),
+    ]);
+    const art = await artR.json();
+    const lin = await linR.json();
+    const lineage = lin.lineage || [];
+
+    let contentHtml = '';
+    try {
+      const cR = await fetch(API + '/kcp/v1/artifacts/' + id + '/content');
+      const cD = await cR.json();
+      if (cD.content) {
+        const decoded = atob(cD.content);
+        contentHtml = `<div class="content-preview">${esc(decoded)}</div>`;
+      }
+    } catch(e) {}
+
+    let lineageHtml = '';
+    if (lineage.length > 1) {
+      lineageHtml = '<h4 style="margin:16px 0 8px">Lineage</h4><div class="lineage-chain">' +
+        lineage.map((l, i) => `
+          <div class="lineage-item ${l.id === id ? 'current' : ''}">
+            <strong>${esc(l.title)}</strong><br>
+            <span style="font-size:0.8em;color:var(--muted)">By ${esc(l.author)} · ${(l.created_at||'').substring(0,10)}</span>
+          </div>
+        `).join('') + '</div>';
+    }
+
+    document.getElementById('modal-content').innerHTML = `
+      <h2>${esc(art.title)}</h2>
+      <div class="card-meta" style="margin:8px 0 16px">
+        <span>📄 ${art.format}</span>
+        <span>👤 ${esc(art.user_id)}</span>
+        <span>📅 ${(art.timestamp||'').substring(0,10)}</span>
+        <span>🔒 ${art.visibility}</span>
+      </div>
+      ${art.tags && art.tags.length ? '<div style="margin-bottom:12px">' + art.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('') + '</div>' : ''}
+      ${art.summary ? `<p style="color:#aaa">${esc(art.summary)}</p>` : ''}
+      <div style="margin:12px 0;font-size:0.8em;color:var(--muted)">
+        <strong>ID:</strong> <code>${art.id}</code><br>
+        <strong>Hash:</strong> <code>${art.content_hash}</code><br>
+        <strong>Signature:</strong> <code>${(art.signature||'').substring(0,32)}...</code>
+      </div>
+      ${contentHtml}
+      ${lineageHtml}
+    `;
+    document.getElementById('modal').classList.add('show');
+  } catch(e) { toast('Error loading artifact', true); }
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function toast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? 'var(--danger)' : 'var(--accent)';
+  t.style.color = isError ? '#fff' : '#000';
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// Init
+loadStats();
+loadArtifacts();
+loadPeers();
+</script>
+</body>
+</html>
