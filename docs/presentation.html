@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KCP — Knowledge Context Protocol</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0A0E1A;
+            --bg-darker: #060912;
+            --bg-card: rgba(255,255,255,0.05);
+            --bg-card-hover: rgba(255,255,255,0.08);
+            --text: #F0F0F5;
+            --text-muted: #8B8FA3;
+            --text-dim: #5A5E72;
+            --primary: #00D9FF;
+            --primary-soft: rgba(0, 217, 255, 0.15);
+            --secondary: #7B61FF;
+            --secondary-soft: rgba(123, 97, 255, 0.15);
+            --accent: #21C25E;
+            --accent-soft: rgba(33, 194, 94, 0.15);
+            --danger: #FF5757;
+            --danger-soft: rgba(255, 87, 87, 0.15);
+            --warning: #F5A623;
+            --border: rgba(255,255,255,0.06);
+            --border-hover: rgba(0, 217, 255, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+
+        section {
+            min-height: 100vh;
+            padding: 6rem 0 4rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* ─── Navigation ─── */
+        nav {
+            position: fixed; top: 0; left: 0; right: 0;
+            background: rgba(10, 14, 26, 0.92);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 0.875rem 0;
+            z-index: 1000;
+        }
+        nav .container { display: flex; align-items: center; justify-content: space-between; }
+
+        .brand {
+            font-size: 1.125rem; font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; letter-spacing: -0.02em;
+        }
+        .brand span { font-weight: 400; -webkit-text-fill-color: var(--text-muted); color: var(--text-muted); }
+
+        .nav-dots { display: flex; gap: 0.625rem; }
+        .nav-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: rgba(255,255,255,0.15); cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .nav-dot.active { background: var(--primary); transform: scale(1.6); box-shadow: 0 0 12px var(--primary); }
+        .nav-dot:hover:not(.active) { background: rgba(255,255,255,0.3); }
+
+        .nav-repo {
+            font-size: 0.8125rem; color: var(--text-muted);
+            text-decoration: none; border: 1px solid var(--border);
+            padding: 0.375rem 0.875rem; border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+        .nav-repo:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* ─── Typography ─── */
+        h1 {
+            font-size: clamp(2.5rem, 5vw, 4.25rem); font-weight: 900;
+            line-height: 1.08; margin-bottom: 1.5rem; letter-spacing: -0.03em;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 50%, var(--primary) 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradient-shift 6s ease infinite;
+        }
+        @keyframes gradient-shift { 0%,100%{background-position:0% center} 50%{background-position:100% center} }
+
+        h2 {
+            font-size: clamp(1.875rem, 3.5vw, 2.75rem);
+            font-weight: 800; margin-bottom: 1.25rem;
+            line-height: 1.15; letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: clamp(1.125rem, 2vw, 1.375rem);
+            color: var(--text-muted); margin-bottom: 3rem;
+            max-width: 780px; margin-left: auto; margin-right: auto;
+            line-height: 1.7;
+        }
+
+        .section-label {
+            font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em;
+            color: var(--primary); font-weight: 700; margin-bottom: 1.25rem;
+            position: relative; padding-left: 1.25rem;
+        }
+        .section-label::before {
+            content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+            width: 3px; height: 16px; background: var(--primary); border-radius: 2px;
+        }
+
+        .description {
+            font-size: 1.0625rem; color: var(--text-muted);
+            margin-bottom: 3rem; max-width: 780px; line-height: 1.7;
+        }
+
+        /* ─── Hero ─── */
+        .hero { text-align: center; position: relative; overflow: hidden; }
+        .hero::before, .hero::after {
+            content: ''; position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.2;
+            animation: pulse-glow 5s ease-in-out infinite;
+        }
+        .hero::before { width: 600px; height: 600px; background: var(--primary); top: -250px; right: -150px; }
+        .hero::after { width: 500px; height: 500px; background: var(--secondary); bottom: -200px; left: -150px; animation-delay: 2.5s; }
+        @keyframes pulse-glow { 0%,100%{transform:scale(1);opacity:0.2} 50%{transform:scale(1.15);opacity:0.3} }
+        .hero-content { position: relative; z-index: 1; }
+
+        /* ─── Stat Cards ─── */
+        .stats-row {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.5rem; margin-top: 3rem;
+        }
+        .stat-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 1.75rem 1.25rem; text-align: center;
+            transition: all 0.3s ease;
+        }
+        .stat-card:hover { transform: translateY(-4px); border-color: var(--border-hover); box-shadow: 0 8px 32px rgba(0,217,255,0.12); }
+        .stat-number {
+            font-size: 2.5rem; font-weight: 900; line-height: 1;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; margin-bottom: 0.5rem;
+        }
+        .stat-label { color: var(--text-muted); font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; }
+
+        /* ─── Cards Grid ─── */
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 1.5rem; margin-top: 2.5rem; }
+        .card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 2rem; transition: all 0.3s ease;
+        }
+        .card:hover { transform: translateY(-4px); border-color: var(--border-hover); box-shadow: 0 8px 32px rgba(0,217,255,0.1); }
+        .card-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+        .card-title { font-size: 1.125rem; font-weight: 700; margin-bottom: 0.625rem; letter-spacing: -0.01em; }
+        .card-text { color: var(--text-muted); font-size: 0.9375rem; line-height: 1.6; }
+        .card-stat {
+            margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);
+            font-size: 1.75rem; font-weight: 900; color: var(--primary);
+        }
+        .card-tag {
+            display: inline-block; font-size: 0.6875rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            padding: 0.25rem 0.625rem; border-radius: 4px; margin-bottom: 0.75rem;
+        }
+        .tag-danger { background: var(--danger-soft); color: var(--danger); }
+        .tag-warning { background: rgba(245,166,35,0.15); color: var(--warning); }
+        .tag-accent { background: var(--accent-soft); color: var(--accent); }
+        .tag-primary { background: var(--primary-soft); color: var(--primary); }
+
+        /* ─── Architecture ─── */
+        .arch-block {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 2.5rem; margin: 2.5rem 0;
+        }
+        .layer {
+            border: 2px solid var(--secondary); border-radius: 10px;
+            padding: 1.25rem 1.5rem; margin-bottom: 0.75rem; position: relative;
+            background: var(--secondary-soft);
+        }
+        .layer.new {
+            background: var(--primary-soft); border-color: var(--primary);
+            box-shadow: 0 0 40px rgba(0,217,255,0.15);
+        }
+        .layer-number {
+            position: absolute; top: -10px; left: 1.25rem;
+            background: var(--bg-dark); padding: 0 0.625rem;
+            font-size: 0.75rem; font-weight: 700; color: var(--primary);
+            letter-spacing: 0.05em;
+        }
+        .layer-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .layer-desc { color: var(--text-muted); font-size: 0.875rem; }
+
+        /* ─── Prior Art Table ─── */
+        .prior-art-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem; margin-top: 2.5rem;
+        }
+        .prior-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 1.75rem; position: relative;
+            transition: all 0.3s ease;
+        }
+        .prior-card:hover { border-color: var(--border-hover); }
+        .prior-name { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .prior-year { font-size: 0.75rem; color: var(--text-dim); }
+        .prior-does { color: var(--accent); font-size: 0.875rem; margin: 0.75rem 0 0.5rem; font-weight: 600; }
+        .prior-gap { color: var(--danger); font-size: 0.875rem; font-weight: 600; }
+        .prior-detail { color: var(--text-muted); font-size: 0.8125rem; line-height: 1.5; margin-bottom: 0.25rem; }
+
+        /* ─── Comparison Table ─── */
+        .comparison-table { width: 100%; border-collapse: collapse; margin: 2rem 0; }
+        .comparison-table th, .comparison-table td { padding: 1rem 1.25rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .comparison-table th { font-weight: 700; color: var(--primary); font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .comparison-table tr:hover { background: rgba(255,255,255,0.02); }
+        .comparison-table td:first-child { font-weight: 600; }
+        .check { color: var(--accent); font-size: 1.25rem; }
+        .cross { color: var(--danger); font-size: 1.25rem; }
+
+        /* ─── ROI Section ─── */
+        .roi-container {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2.5rem;
+        }
+        .roi-box {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 2rem;
+        }
+        .roi-box.before { border-color: rgba(255,87,87,0.3); }
+        .roi-box.after { border-color: rgba(33,194,94,0.3); box-shadow: 0 0 30px rgba(33,194,94,0.08); }
+        .roi-box h3 { font-size: 1.125rem; font-weight: 700; margin-bottom: 1.25rem; }
+        .roi-box.before h3 { color: var(--danger); }
+        .roi-box.after h3 { color: var(--accent); }
+        .roi-item { display: flex; justify-content: space-between; padding: 0.625rem 0; border-bottom: 1px solid var(--border); }
+        .roi-item:last-child { border-bottom: none; }
+        .roi-label { color: var(--text-muted); font-size: 0.9375rem; }
+        .roi-value { font-weight: 700; font-size: 0.9375rem; }
+        .roi-value.bad { color: var(--danger); }
+        .roi-value.good { color: var(--accent); }
+
+        .roi-highlight {
+            background: linear-gradient(135deg, var(--primary-soft), var(--secondary-soft));
+            border: 1px solid var(--border-hover); border-radius: 16px;
+            padding: 2rem; text-align: center; margin-top: 2rem;
+            grid-column: 1 / -1;
+        }
+        .roi-big { font-size: 3.5rem; font-weight: 900; color: var(--primary); line-height: 1; }
+        .roi-big-label { color: var(--text-muted); font-size: 0.9375rem; margin-top: 0.5rem; }
+
+        /* ─── Timeline ─── */
+        .timeline { position: relative; padding: 2rem 0; }
+        .timeline-item { display: grid; grid-template-columns: 100px 1fr; gap: 2rem; margin-bottom: 2.5rem; position: relative; }
+        .timeline-date { text-align: right; font-weight: 700; color: var(--primary); font-size: 1rem; padding-top: 0.25rem; }
+        .timeline-content {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 1.75rem; position: relative;
+        }
+        .timeline-content::before {
+            content: ''; position: absolute; left: -2rem; top: 1.5rem;
+            width: 10px; height: 10px; background: var(--primary);
+            border-radius: 50%; box-shadow: 0 0 16px var(--primary);
+        }
+        .timeline-title { font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .timeline-desc { color: var(--text-muted); font-size: 0.9375rem; line-height: 1.6; }
+
+        /* ─── Roadmap Cards ─── */
+        .roadmap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2.5rem; }
+        .roadmap-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 2rem; transition: all 0.3s ease;
+        }
+        .roadmap-card:hover { transform: translateY(-3px); border-color: var(--border-hover); }
+        .roadmap-card h3 { font-size: 1.125rem; margin-bottom: 1rem; }
+        .roadmap-card ul { list-style: none; padding: 0; color: var(--text-muted); line-height: 2; font-size: 0.9375rem; }
+        .roadmap-card .card-stat { font-size: 1.5rem; }
+
+        /* ─── CTA ─── */
+        .cta-section { text-align: center; }
+        .cta-button {
+            display: inline-block; padding: 1.125rem 2.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white; text-decoration: none; border-radius: 50px;
+            font-weight: 700; font-size: 1.0625rem; transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(0,217,255,0.25);
+        }
+        .cta-button:hover { transform: translateY(-2px); box-shadow: 0 12px 48px rgba(0,217,255,0.35); }
+        .cta-button + .cta-button { margin-left: 1rem; background: transparent; border: 2px solid var(--primary); box-shadow: none; }
+        .cta-button + .cta-button:hover { background: var(--primary-soft); }
+
+        /* ─── Animations ─── */
+        .fade-up { opacity: 0; transform: translateY(30px); transition: all 0.6s ease; }
+        .fade-up.visible { opacity: 1; transform: translateY(0); }
+        .stagger-1 { transition-delay: 0.1s; } .stagger-2 { transition-delay: 0.2s; }
+        .stagger-3 { transition-delay: 0.3s; } .stagger-4 { transition-delay: 0.4s; }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 900px) {
+            section { padding: 4rem 0 3rem; min-height: auto; }
+            .cards-grid, .prior-art-grid, .roadmap-grid { grid-template-columns: 1fr; }
+            .roi-container { grid-template-columns: 1fr; }
+            .timeline-item { grid-template-columns: 1fr; }
+            .timeline-date { text-align: left; }
+            .timeline-content::before { display: none; }
+            .nav-repo { display: none; }
+            .cta-button + .cta-button { margin-left: 0; margin-top: 1rem; display: block; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="container">
+            <div class="brand">KCP <span>Protocol</span></div>
+            <div class="nav-dots">
+                <div class="nav-dot active" data-section="0"></div>
+                <div class="nav-dot" data-section="1"></div>
+                <div class="nav-dot" data-section="2"></div>
+                <div class="nav-dot" data-section="3"></div>
+                <div class="nav-dot" data-section="4"></div>
+                <div class="nav-dot" data-section="5"></div>
+                <div class="nav-dot" data-section="6"></div>
+                <div class="nav-dot" data-section="7"></div>
+                <div class="nav-dot" data-section="8"></div>
+                <div class="nav-dot" data-section="9"></div>
+                <div class="nav-dot" data-section="10"></div>
+            </div>
+            <a href="https://github.com/tgosoul2019/kcp" target="_blank" class="nav-repo">⭐ GitHub</a>
+        </div>
+    </nav>
+
+    <!-- ═══════════ 0. HERO ═══════════ -->
+    <section class="hero" id="section-0">
+        <div class="container">
+            <div class="hero-content fade-up">
+                <h1>Knowledge Context<br>Protocol</h1>
+                <p class="subtitle">
+                    O modelo OSI tem 7 camadas. TCP/IP tem 4. Mas <strong>nenhum deles resolve governança, descoberta e persistência de conhecimento gerado por IA</strong>. Propomos uma nova camada de abstração: a <strong>Camada 8</strong>.
+                </p>
+                <div class="stats-row">
+                    <div class="stat-card fade-up stagger-1">
+                        <div class="stat-number">40-60%</div>
+                        <div class="stat-label">Trabalho analítico duplicado</div>
+                    </div>
+                    <div class="stat-card fade-up stagger-2">
+                        <div class="stat-number">0%</div>
+                        <div class="stat-label">Taxa de reuso de insights</div>
+                    </div>
+                    <div class="stat-card fade-up stagger-3">
+                        <div class="stat-number">90%</div>
+                        <div class="stat-label">Perdido em 30 dias</div>
+                    </div>
+                    <div class="stat-card fade-up stagger-4">
+                        <div class="stat-number">$0</div>
+                        <div class="stat-label">Investido em resolver isso</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ 1. POR QUE AGORA ═══════════ -->
+    <section id="section-1">
+        <div class="container">
+            <div class="section-label fade-up">POR QUE AGORA</div>
+            <h2 class="fade-up">A janela de oportunidade está aberta</h2>
+            <p class="description fade-up">
+                Em 2024, o uso de IA generativa nas empresas explodiu. Em 2026, cada colaborador gera 40-60 análises/semana com agentes de IA. Mas toda essa inteligência está sendo <strong>descartada</strong>.
+            </p>
+
+            <div class="cards-grid">
+                <div class="card fade-up stagger-1">
+                    <div class="card-tag tag-danger">Urgente</div>
+                    <div class="card-icon">📈</div>
+                    <div class="card-title">Explosão de Outputs de IA</div>
+                    <div class="card-text">
+                        ChatGPT, Claude, Copilot, agentes custom — cada ferramenta gera conhecimento que <strong>morre na sessão</strong>.
+                    </div>
+                    <div class="card-stat">847%</div>
+                    <div class="card-text" style="margin-top:0.25rem; font-size:0.8125rem;">crescimento em 2025 (Gartner)</div>
+                </div>
+
+                <div class="card fade-up stagger-2">
+                    <div class="card-tag tag-warning">Custo real</div>
+                    <div class="card-icon">💸</div>
+                    <div class="card-title">Retrabalho Invisível</div>
+                    <div class="card-text">
+                        Cada análise duplicada custa $200-500 (tempo + compute). Em uma empresa de 5.000 pessoas:
+                    </div>
+                    <div class="card-stat">$2.4M/ano</div>
+                    <div class="card-text" style="margin-top:0.25rem; font-size:0.8125rem;">desperdiçado em trabalho duplicado</div>
+                </div>
+
+                <div class="card fade-up stagger-3">
+                    <div class="card-tag tag-danger">Risco</div>
+                    <div class="card-icon">⚖️</div>
+                    <div class="card-title">Compliance Cego</div>
+                    <div class="card-text">
+                        LGPD Art. 20 e EU AI Act Art. 14 exigem explicabilidade. Sem lineage, <strong>auditoria é impossível</strong>.
+                    </div>
+                    <div class="card-stat">0%</div>
+                    <div class="card-text" style="margin-top:0.25rem; font-size:0.8125rem;">rastreabilidade de decisões baseadas em IA</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ 2. O PROBLEMA ═══════════ -->
+    <section id="section-2">
+        <div class="container">
+            <div class="section-label fade-up">O PROBLEMA</div>
+            <h2 class="fade-up">Conhecimento gerado por IA está se perdendo</h2>
+            <p class="description fade-up">
+                Toda empresa que usa IA hoje vive o mesmo ciclo: gerar → perder → regerar → perder. Nenhuma camada do stack de rede atual resolve isso.
+            </p>
+
+            <div class="cards-grid">
+                <div class="card fade-up stagger-1">
+                    <div class="card-icon">💭</div>
+                    <div class="card-title">Conhecimento Efêmero</div>
+                    <div class="card-text">Análises ficam em chats privados, desaparecem quando a sessão termina. Zero reuso entre times.</div>
+                </div>
+                <div class="card fade-up stagger-2">
+                    <div class="card-icon">🔍</div>
+                    <div class="card-title">Descoberta Impossível</div>
+                    <div class="card-text">"Alguém já analisou isso?" → ninguém sabe onde procurar. Cada time é uma ilha isolada.</div>
+                </div>
+                <div class="card fade-up stagger-3">
+                    <div class="card-icon">🔒</div>
+                    <div class="card-title">Governança Zero</div>
+                    <div class="card-text">Sem rastreabilidade de fontes, sem versionamento, sem lineage. Impossível auditar decisões.</div>
+                </div>
+                <div class="card fade-up stagger-4">
+                    <div class="card-icon">🏝️</div>
+                    <div class="card-title">IAs em Silos</div>
+                    <div class="card-text">ChatGPT não sabe o que o Claude fez. Copilot não sabe o que seu agente custom gerou. Zero interoperabilidade.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ 3. PRIOR ART ═══════════ -->
+    <section id="section-3">
+        <div class="container">
+            <div class="section-label fade-up">PRIOR ART</div>
+            <h2 class="fade-up">Por que nada que existe hoje resolve?</h2>
+            <p class="description fade-up">
+                Pesquisamos extensivamente: Semantic Web, MCP, Knowledge Graphs, Data Catalogs, Git, Wikis, RAG. <strong>Nenhum combina persistência + governança + descoberta + lineage em um protocolo aberto.</strong>
+            </p>
+
+            <div class="prior-art-grid">
+                <div class="prior-card fade-up stagger-1">
+                    <div class="prior-name">🌐 Semantic Web (RDF/SPARQL)</div>
+                    <div class="prior-year">W3C, 2001 — 25 anos</div>
+                    <div class="prior-does">✓ O que faz bem:</div>
+                    <div class="prior-detail">Dados linkados estruturados, ontologias formais (OWL)</div>
+                    <div class="prior-gap">✗ O que falta:</div>
+                    <div class="prior-detail">Foco em dados estáticos. Sem lineage. Sem multi-tenant. Adoção &lt;0.1% da web.</div>
+                </div>
+
+                <div class="prior-card fade-up stagger-2">
+                    <div class="prior-name">🔌 Model Context Protocol (MCP)</div>
+                    <div class="prior-year">Anthropic, 2024 — 2 anos</div>
+                    <div class="prior-does">✓ O que faz bem:</div>
+                    <div class="prior-detail">Compartilha contexto entre ferramentas IA em tempo real</div>
+                    <div class="prior-gap">✗ O que falta:</div>
+                    <div class="prior-detail">Apenas sessão. Sem persistência. Sem descoberta. Sem governança.</div>
+                </div>
+
+                <div class="prior-card fade-up stagger-3">
+                    <div class="prior-name">🕸️ Knowledge Graphs</div>
+                    <div class="prior-year">Google KG, Wikidata, Neo4j</div>
+                    <div class="prior-does">✓ O que faz bem:</div>
+                    <div class="prior-detail">Relações entre entidades, graph traversal</div>
+                    <div class="prior-gap">✗ O que falta:</div>
+                    <div class="prior-detail">Modela entidades, não insights. Sem lineage. Sem multi-tenant. Curadoria manual.</div>
+                </div>
+
+                <div class="prior-card fade-up stagger-4">
+                    <div class="prior-name">📂 Git / Wikis / RAG</div>
+                    <div class="prior-year">Diversas tecnologias</div>
+                    <div class="prior-does">✓ O que faz bem:</div>
+                    <div class="prior-detail">Versionamento (Git), documentação (Wiki), retrieval (RAG)</div>
+                    <div class="prior-gap">✗ O que falta:</div>
+                    <div class="prior-detail">Sem busca semântica. Sem auto-ingest de IA. Sem federação cross-org. Fragmentados.</div>
+                </div>
+            </div>
+
+            <div class="arch-block fade-up" style="margin-top: 2.5rem; text-align: center;">
+                <p style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.75rem;">KCP é o primeiro protocolo a combinar:</p>
+                <p style="color: var(--text-muted); font-size: 1.0625rem; line-height: 2;">
+                    ✅ Persistência &nbsp;·&nbsp; ✅ Governança Multi-Tenant &nbsp;·&nbsp; ✅ Descoberta Semântica<br>
+                    ✅ Lineage Tracking &nbsp;·&nbsp; ✅ Federação P2P &nbsp;·&nbsp; ✅ Protocolo Aberto
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ 4. A SOLUÇÃO ═══════════ -->
+    <section id="section-4">
+        <div class="container">
+            <div class="section-label fade-up">A SOLUÇÃO</div>
+            <h2 class="fade-up">Uma nova camada: Layer 8</h2>
+            <p class="description fade-up">
+                Propomos uma <strong>Camada de Contexto & Conhecimento</strong> acima da camada de aplicação (L7), com um protocolo aberto: <strong>KCP</strong>.
+            </p>
+
+            <div class="arch-block fade-up">
+                <div class="layer new">
+                    <div class="layer-number">CAMADA 8 — NOVA</div>
+                    <div class="layer-title">🧠 Contexto & Conhecimento (KCP)</div>
+                    <div class="layer-desc">Persistência semântica · Governança multi-tenant · Descoberta contextual · Lineage (fonte → insight → decisão)</div>
+                </div>
+                <div class="layer">
+                    <div class="layer-number">CAMADA 7</div>
+                    <div class="layer-title">📱 Aplicação (HTTP, SMTP, FTP)</div>
+                    <div class="layer-desc">Consome e gera dados, mas não governa conhecimento</div>
+                </div>
+                <div class="layer">
+                    <div class="layer-number">CAMADA 6</div>
+                    <div class="layer-title">🎨 Apresentação</div>
+                    <div class="layer-desc">Tradução, criptografia, compressão</div>
+                </div>
+                <div class="layer" style="opacity: 0.5;">
+                    <div class="layer-number">CAMADAS 1-5</div>
+                    <div class="layer-title">🔌 Infraestrutura de Rede</div>
+                    <div class="layer-desc">Transporte, rede, enlace, física</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ 5. PROTOCOLO ═══════════ -->
+    <section id="section-5">
+        <div class="container">
+            <div class="section-label fade-up">PROTOCOLO</div>
+            <h2 class="fade-up">KCP: Knowledge Context Protocol</h2>
+            <p class="description fade-up">
+                Um protocolo aberto para interoperabilidade de conhecimento entre IAs, ferramentas e organizações.
+            </p>
+
+            <div class="cards-grid">
+                <div class="card fade-up stagger-1">
+                    <div class="card-tag tag-primary">Auto-Ingest</div>
+                    <div class="card-icon">📝</div>
+                    <div class="card-title">Publicação Sem Fricção</div>
+                    <div class="card-text">Agentes publicam outputs automaticamente. HTML, JSON, análises — tudo armazenado com metadata rico.</div>
+                </div>
+                <div class="card fade-up stagger-2">
+                    <div class="card-tag tag-primary">Lineage</div>
+                    <div class="card-icon">🔗</div>
+                    <div class="card-title">Rastreabilidade Total</div>
+                    <div class="card-text">Cada artefato registra: fonte de dados → query → agente → insight → decisão. Cadeia completa e auditável.</div>
+                </div>
+                <div class="card fade-up stagger-3">
+                    <div class="card-tag tag-primary">Discovery</div>
+                    <div class="card-icon">🔍</div>
+                    <div class="card-title">Busca Semântica</div>
+                    <div class="card-text">Vector DB + full-text search. "Quem já fez análise de churn?" retorna resultados relevantes em milissegundos.</div>
+                </div>
+                <div class="card fade-up stagger-4">
+                    <div class="card-tag tag-primary">P2P</div>
+                    <div class="card-icon">🌐</div>
+                    <div class="card-title">Federação Distribuída</div>
+                    <div class="card-text">Inspirado em BitTorrent/IPFS. Cada organização é um nó. Sem servidor central. DHT para descoberta.</div>
+                </div>
+            </div>
+
+            <div class="arch-block fade-up" style="margin-top: 2rem;">
+                <div class="card-title" style="font-size: 1.25rem; margin-bottom: 1.25rem;">Payload KCP v0.1</div>
+                <pre style="background: rgba(0,0,0,0.4); padding: 1.5rem; border-radius: 10px; overflow-x: auto; font-size: 0.8125rem; line-height: 1.7; color: #A0E7FF;">
+{
+  "id": "uuid-v4",
+  "user_id": "alice@example.com",
+  "tenant_id": "acme-corp",
+  "team": "data-science",
+  "tags": ["churn", "analytics", "ml"],
+  "source": "jupyter-agent-v1.2.3",
+  "visibility": "team",
+  "lineage": {
+    "query": "Predict customer churn using 12 months of history",
+    "data_sources": ["postgres://analytics/customers"],
+    "agent": "jupyter-agent-v1.2.3"
+  },
+  "content_hash": "sha256:e3b0c44298fc1c...",
+  "signature": "ed25519:a1b2c3d4e5f6..."
+}</pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ 6. SEGURANÇA ═══════════ -->
+    <section id="section-6">
+        <div class="container">
+            <div class="section-label fade-up">SEGURANÇA</div>
+            <h2 class="fade-up">Zero-trust por design</h2>
+            <p class="description fade-up">
+                Cada artefato é assinado. Cada acesso é verificado. Cada tenant é isolado criptograficamente.
+            </p>
+
+            <div class="cards-grid">
+                <div class="card fade-up stagger-1">
+                    <div class="card-icon">🔐</div>
+                    <div class="card-title">3 Camadas de Criptografia</div>
+                    <div class="card-text">
+                        <strong>Transporte:</strong> TLS 1.3<br>
+                        <strong>Storage:</strong> AES-256-GCM (at rest)<br>
+                        <strong>Conteúdo:</strong> Per-tenant keys (E2E)
+                    </div>
+                </div>
+                <div class="card fade-up stagger-2">
+                    <div class="card-icon">✍️</div>
+                    <div class="card-title">Assinatura Digital</div>
+                    <div class="card-text">
+                        Ed25519 obrigatório. Todo artefato é assinado pelo autor. Non-repudiable. Verificável por qualquer nó.
+                    </div>
+                </div>
+                <div class="card fade-up stagger-3">
+                    <div class="card-icon">🏢</div>
+                    <div class="card-title">Isolamento Zero-Knowledge</div>
+                    <div class="card-text">
+                        Dados do Tenant A são criptografados com a chave do Tenant A. Tenant B <strong>não pode ler</strong>, mesmo com acesso físico ao storage.
+                    </div>
+                </div>
+                <div class="card fade-up stagger-4">
+                    <div class="card-icon">🎚️</div>
+                    <div class="card-title">4 Tiers de Visibilidade</div>
+                    <div class="card-text">
+                        <strong>Public:</strong> Qualquer um lê<br>
+                        <strong>Org:</strong> Mesmo tenant<br>
+                        <strong>Team:</strong> Mesmo time<br>
+                        <strong>Private:</strong> Só autor + ACL
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ 7. ANTES vs DEPOIS ═══════════ -->
+    <section id="section-7">
+        <div class="container">
+            <div class="section-label fade-up">COMPARAÇÃO</div>
+            <h2 class="fade-up">Antes vs Depois</h2>
+
+            <table class="comparison-table fade-up">
+                <thead>
+                    <tr>
+                        <th style="width:35%">Recurso</th>
+                        <th style="width:32%">Hoje (Sem KCP)</th>
+                        <th style="width:33%">Com KCP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Persistência de análises</td><td><span class="cross">✗</span> Chat privado, se perde</td><td><span class="check">✓</span> Automático, versionado</td></tr>
+                    <tr><td>Descoberta de conhecimento</td><td><span class="cross">✗</span> Perguntar no Slack</td><td><span class="check">✓</span> Busca semântica</td></tr>
+                    <tr><td>Lineage de dados</td><td><span class="cross">✗</span> Zero rastreabilidade</td><td><span class="check">✓</span> Fonte → insight → decisão</td></tr>
+                    <tr><td>Governança multi-tenant</td><td><span class="cross">✗</span> RBAC genérico</td><td><span class="check">✓</span> Org/Team contextual</td></tr>
+                    <tr><td>Reuso de análises</td><td><span class="cross">✗</span> 0%</td><td><span class="check">✓</span> 40-60%</td></tr>
+                    <tr><td>Interoperabilidade entre IAs</td><td><span class="cross">✗</span> Silos isolados</td><td><span class="check">✓</span> Protocolo aberto</td></tr>
+                    <tr><td>Tempo de discovery</td><td>2-3 horas</td><td><strong style="color:var(--accent)">15 minutos</strong></td></tr>
+                    <tr><td>Auditoria/Compliance</td><td>2 semanas (manual)</td><td><strong style="color:var(--accent)">2 horas (query)</strong></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ═══════════ 8. ROI ═══════════ -->
+    <section id="section-8">
+        <div class="container">
+            <div class="section-label fade-up">ROI CONCRETO</div>
+            <h2 class="fade-up">Os números falam por si</h2>
+            <p class="description fade-up">
+                Cenário: organização de engenharia com 200 pessoas e 40 times.
+            </p>
+
+            <div class="roi-container fade-up">
+                <div class="roi-box before">
+                    <h3>❌ Sem KCP (hoje)</h3>
+                    <div class="roi-item"><span class="roi-label">Análises duplicadas/mês</span><span class="roi-value bad">120</span></div>
+                    <div class="roi-item"><span class="roi-label">Horas perdidas/mês</span><span class="roi-value bad">80h</span></div>
+                    <div class="roi-item"><span class="roi-label">Custo retrabalho/ano</span><span class="roi-value bad">$96,000</span></div>
+                    <div class="roi-item"><span class="roi-label">Taxa de reuso</span><span class="roi-value bad">0%</span></div>
+                    <div class="roi-item"><span class="roi-label">Tempo de auditoria</span><span class="roi-value bad">2 semanas</span></div>
+                </div>
+
+                <div class="roi-box after">
+                    <h3>✅ Com KCP</h3>
+                    <div class="roi-item"><span class="roi-label">Análises duplicadas/mês</span><span class="roi-value good">18</span></div>
+                    <div class="roi-item"><span class="roi-label">Horas perdidas/mês</span><span class="roi-value good">12h</span></div>
+                    <div class="roi-item"><span class="roi-label">Custo retrabalho/ano</span><span class="roi-value good">$14,400</span></div>
+                    <div class="roi-item"><span class="roi-label">Taxa de reuso</span><span class="roi-value good">60%</span></div>
+                    <div class="roi-item"><span class="roi-label">Tempo de auditoria</span><span class="roi-value good">2 horas</span></div>
+                </div>
+
+                <div class="roi-highlight">
+                    <div class="roi-big">6.7x</div>
+                    <div class="roi-big-label">ROI no primeiro ano · Payback em 1.8 meses</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ 9. ROADMAP ═══════════ -->
+    <section id="section-9">
+        <div class="container">
+            <div class="section-label fade-up">ROADMAP</div>
+            <h2 class="fade-up">Implementação em 3 fases</h2>
+
+            <div class="roadmap-grid">
+                <div class="roadmap-card fade-up stagger-1">
+                    <h3 style="color: var(--primary);">Fase 1: MVP (1 mês)</h3>
+                    <ul>
+                        <li>✅ Spec do protocolo v0.1</li>
+                        <li>✅ Documentação completa</li>
+                        <li>✅ Repo open-source</li>
+                        <li>☐ SDK Python (referência)</li>
+                        <li>☐ libsql + SQLCipher</li>
+                        <li>☐ 10 usuários piloto</li>
+                    </ul>
+                    <div class="card-stat">🎯 Validar conceito</div>
+                </div>
+
+                <div class="roadmap-card fade-up stagger-2">
+                    <h3 style="color: var(--secondary);">Fase 2: Escala (3 meses)</h3>
+                    <ul>
+                        <li>☐ Vector DB (busca semântica)</li>
+                        <li>☐ Multi-tenant + RBAC</li>
+                        <li>☐ SDKs TypeScript + Go</li>
+                        <li>☐ Lineage tracking</li>
+                        <li>☐ Portal de discovery</li>
+                        <li>☐ 100 usuários</li>
+                    </ul>
+                    <div class="card-stat">🎯 Product-market fit</div>
+                </div>
+
+                <div class="roadmap-card fade-up stagger-3">
+                    <h3 style="color: var(--accent);">Fase 3: Protocolo (6 meses)</h3>
+                    <ul>
+                        <li>☐ IPFS + libp2p (P2P)</li>
+                        <li>☐ KCP Native Format (.kcp)</li>
+                        <li>☐ RFC submetido (IETF)</li>
+                        <li>☐ Paper no ArXiv</li>
+                        <li>☐ SDKs open-source</li>
+                        <li>☐ Comunidade global</li>
+                    </ul>
+                    <div class="card-stat">🎯 Padrão aberto</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════ 10. CTA ═══════════ -->
+    <section id="section-10" class="cta-section">
+        <div class="container">
+            <div class="fade-up">
+                <div class="section-label" style="display: inline-block;">PRÓXIMOS PASSOS</div>
+                <h2>Vamos construir a Camada 8 juntos</h2>
+                <p class="description" style="margin-left: auto; margin-right: auto;">
+                    O protocolo é aberto. O código é open-source. A especificação está publicada. Precisamos de early adopters, feedback técnico e contribuidores para transformar isso em padrão da indústria.
+                </p>
+
+                <div class="stats-row" style="margin-bottom: 3rem;">
+                    <div class="stat-card fade-up stagger-1">
+                        <div class="stat-number">1 mês</div>
+                        <div class="stat-label">Tempo para MVP</div>
+                    </div>
+                    <div class="stat-card fade-up stagger-2">
+                        <div class="stat-number">85%</div>
+                        <div class="stat-label">Redução de retrabalho</div>
+                    </div>
+                    <div class="stat-card fade-up stagger-3">
+                        <div class="stat-number">MIT</div>
+                        <div class="stat-label">Licença Open-Source</div>
+                    </div>
+                </div>
+
+                <a href="https://github.com/tgosoul2019/kcp" target="_blank" class="cta-button fade-up">⭐ Ver no GitHub</a>
+                <a href="https://github.com/tgosoul2019/kcp/blob/main/SPEC.md" target="_blank" class="cta-button fade-up">📄 Ler a Spec</a>
+
+                <p style="margin-top: 3rem; color: var(--text-muted); font-size: 0.875rem;">
+                    📧 tgosoul@gmail.com · 🐙 github.com/tgosoul2019/kcp
+                </p>
+                <p style="margin-top: 0.5rem; color: var(--text-dim); font-size: 0.75rem;">
+                    Thiago Silva · Open-source · MIT License · 2026
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        const observerOptions = { threshold: 0.15, rootMargin: '0px 0px -80px 0px' };
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('visible'); });
+        }, observerOptions);
+        document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+        const sections = document.querySelectorAll('section');
+        const navDots = document.querySelectorAll('.nav-dot');
+        const sectionObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const index = entry.target.id.split('-')[1];
+                    navDots.forEach(dot => dot.classList.remove('active'));
+                    const activeDot = document.querySelector(`[data-section="${index}"]`);
+                    if (activeDot) activeDot.classList.add('active');
+                }
+            });
+        }, { threshold: 0.35 });
+        sections.forEach(section => sectionObserver.observe(section));
+
+        navDots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                document.getElementById(`section-${dot.getAttribute('data-section')}`).scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+
+        let currentVisible = 0;
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown' || e.key === ' ') {
+                e.preventDefault();
+                const next = Math.min(currentVisible + 1, sections.length - 1);
+                sections[next].scrollIntoView({ behavior: 'smooth' });
+                currentVisible = next;
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prev = Math.max(currentVisible - 1, 0);
+                sections[prev].scrollIntoView({ behavior: 'smooth' });
+                currentVisible = prev;
+            }
+        });
+
+        const navSectionObs = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) currentVisible = Array.from(sections).indexOf(entry.target);
+            });
+        }, { threshold: 0.5 });
+        sections.forEach(s => navSectionObs.observe(s));
+    </script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kcp"
+version = "0.1.0"
+description = "Knowledge Context Protocol — Python SDK"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Thiago Silva", email = "tgosoul@gmail.com"}
+]
+keywords = ["ai", "protocol", "knowledge-management", "governance"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = []
+
+[project.optional-dependencies]
+crypto = ["cryptography>=42.0"]
+http = ["httpx>=0.27"]
+all = ["cryptography>=42.0", "httpx>=0.27"]
+dev = [
+    "cryptography>=42.0",
+    "httpx>=0.27",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[project.urls]
+Homepage = "https://github.com/tgosoul2019/kcp"
+Documentation = "https://github.com/tgosoul2019/kcp/blob/main/SPEC.md"
+Repository = "https://github.com/tgosoul2019/kcp"
+Issues = "https://github.com/tgosoul2019/kcp/issues"
