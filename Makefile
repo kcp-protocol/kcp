@@ -1,6 +1,7 @@
 .PHONY: setup setup-python setup-ts setup-go setup-mcp \
         test test-python test-ts test-go test-mcp test-all \
         demo demo-read demo-clean \
+        serve serve-bg peer-demo \
         lint lint-python lint-ts \
         clean clean-python clean-ts clean-go \
         poc help
@@ -52,7 +53,7 @@ setup-mcp:
 ## Run all SDK test suites (Python + TypeScript + Go + MCP Bridge)
 test: test-python test-ts test-go test-mcp
 	@echo ""
-	@echo "✅ All tests complete — 185 passing"
+	@echo "✅ All tests complete — 220 passing"
 
 ## Run all tests (alias)
 test-all: test
@@ -109,6 +110,52 @@ demo-mcp-clean:
 	@rm -f /tmp/kcp-mcp-demo.db
 	@rm -rf /tmp/kcp-mcp-demo-keys
 	@echo "✓ MCP demo state cleaned"
+
+# ─────────────────────────────────────────────
+# HTTP Server (P2P Node)
+# ─────────────────────────────────────────────
+
+## Start KCP HTTP server on port 8800 (foreground — Ctrl+C to stop)
+serve:
+	@echo "→ Starting KCP node at http://localhost:8800"
+	@echo "  API:    http://localhost:8800/kcp/v1/health"
+	@echo "  Web UI: http://localhost:8800/ui"
+	@echo "  Sync:   http://localhost:8800/kcp/v1/sync/list"
+	@echo ""
+	KCP_USER=$${KCP_USER:-local-user} \
+	$(PYTHON) -c "\
+from kcp.node import KCPNode; \
+node = KCPNode(user_id='$$KCP_USER'); \
+node.serve(host='0.0.0.0', port=8800)"
+
+## Start KCP HTTP server in background (logs to /tmp/kcp-server.log)
+serve-bg:
+	@echo "→ Starting KCP node in background (port 8800)..."
+	@KCP_USER=$${KCP_USER:-local-user} \
+	nohup $(PYTHON) -c "\
+from kcp.node import KCPNode; \
+node = KCPNode(user_id='local-user'); \
+node.serve(host='0.0.0.0', port=8800)" \
+	> /tmp/kcp-server.log 2>&1 & echo $$! > /tmp/kcp-server.pid
+	@sleep 1
+	@echo "✓ KCP node started (PID $$(cat /tmp/kcp-server.pid))"
+	@echo "  Logs: tail -f /tmp/kcp-server.log"
+	@echo "  Stop: make serve-stop"
+
+## Stop background KCP server
+serve-stop:
+	@if [ -f /tmp/kcp-server.pid ]; then \
+		kill $$(cat /tmp/kcp-server.pid) 2>/dev/null && echo "✓ KCP node stopped"; \
+		rm -f /tmp/kcp-server.pid; \
+	else \
+		echo "No running KCP server found (no PID file)"; \
+	fi
+
+## Demo: two local nodes sync artifacts over HTTP (no cloud needed)
+peer-demo:
+	@echo "→ KCP Peer Sync Demo — two nodes exchanging knowledge locally..."
+	@echo ""
+	$(PYTHON) demo_peer.py
 
 ## Verify the MCP server starts and registers all 6 tools (no editor needed)
 test-mcp-server:

@@ -226,7 +226,7 @@
         </div>
         <div class="stats-row fade-up d4">
             <div class="stat-card"><div class="stat-num">4</div><div class="stat-lbl">SDKs + MCP Bridge</div></div>
-            <div class="stat-card"><div class="stat-num">185</div><div class="stat-lbl">Testes passando</div></div>
+            <div class="stat-card"><div class="stat-num">220</div><div class="stat-lbl">Testes passando</div></div>
             <div class="stat-card"><div class="stat-num">MIT</div><div class="stat-lbl">Licença open-source</div></div>
             <div class="stat-card"><div class="stat-num">Ed25519</div><div class="stat-lbl">Assinatura digital</div></div>
         </div>
@@ -368,8 +368,8 @@
             <div class="sdk-card done fade-up d1">
                 <div class="sdk-icon">🐍</div>
                 <div class="sdk-name">Python SDK</div>
-                <div class="sdk-tests green">✅ 61 testes passando</div>
-                <div class="sdk-detail"><code>SQLite + FTS5</code> · <code>Ed25519</code><br>Python 3.13 · pytest · pyproject.toml</div>
+                <div class="sdk-tests green">✅ 96 testes passando</div>
+                <div class="sdk-detail"><code>SQLite + FTS5</code> · <code>Ed25519</code> · <code>FastAPI</code><br>Python 3.13 · pytest · pyproject.toml</div>
             </div>
             <div class="sdk-card done fade-up d2">
                 <div class="sdk-icon">🔷</div>
@@ -396,6 +396,7 @@
             <div style="padding:1.25rem 1.5rem;background:var(--green-soft);border:1px solid var(--green-mid);border-radius:var(--radius)"><div style="font-weight:700;color:var(--green);margin-bottom:.375rem">✅ Cross-session Demo</div><div style="font-size:.875rem;color:var(--text-muted)">Conhecimento persiste entre processos independentes — <code>make demo</code> + <code>make demo-read</code></div></div>
             <div style="padding:1.25rem 1.5rem;background:var(--purple-soft);border:1px solid var(--purple-mid,#c4b5fd);border-radius:var(--radius)"><div style="font-weight:700;color:var(--purple);margin-bottom:.375rem">✅ MCP Demo standalone</div><div style="font-size:.875rem;color:var(--text-muted)">6 tools simulados sem editor — JSON-RPC verificado via stdio (<code>make demo-mcp</code>)</div></div>
             <div style="padding:1.25rem 1.5rem;background:var(--purple-soft);border:1px solid var(--purple-mid,#c4b5fd);border-radius:var(--radius)"><div style="font-weight:700;color:var(--purple);margin-bottom:.375rem">✅ Setup em 1 comando</div><div style="font-size:.875rem;color:var(--text-muted)">Auto-configura Claude Desktop, Cursor e Windsurf — <code>make setup-mcp-claude</code></div></div>
+            <div style="padding:1.25rem 1.5rem;background:var(--blue-soft,#eff6ff);border:1px solid var(--blue-mid,#93c5fd);border-radius:var(--radius)"><div style="font-weight:700;color:var(--blue);margin-bottom:.375rem">✅ Peer Sync (HTTP)</div><div style="font-size:.875rem;color:var(--text-muted)">Dois nós trocam conhecimento via REST — assinaturas e lineage preservados (<code>make peer-demo</code>)</div></div>
         </div>
         <div style="margin-top:1.5rem;padding:1.25rem 1.5rem;background:var(--bg-soft);border:1px solid var(--border);border-radius:var(--radius);font-size:.875rem;color:var(--text-muted)" class="fade-up">
             📦 &nbsp;<code style="background:rgba(0,0,0,.06);padding:.2em .5em;border-radius:4px;margin-right:1rem">pip install kcp</code><code style="background:rgba(0,0,0,.06);padding:.2em .5em;border-radius:4px;margin-right:1rem">npm install @kcp-protocol/kcp</code><code style="background:rgba(0,0,0,.06);padding:.2em .5em;border-radius:4px">go get github.com/kcp-protocol/kcp</code>
@@ -472,7 +473,7 @@
                     <li>✅ TypeScript SDK — 37 testes</li>
                     <li>✅ Go SDK — 64 testes</li>
                     <li>✅ MCP Bridge — 23 testes</li>
-                    <li>✅ Total: 185 testes passando</li>
+                    <li>✅ Total: 220 testes passando</li>
                     <li>✅ Demo cross-session (make demo)</li>
                     <li>✅ Demo MCP 6 tools (make demo-mcp)</li>
                     <li>✅ Setup automático para Claude/Cursor/Windsurf</li>

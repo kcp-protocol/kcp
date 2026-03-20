@@ -49,11 +49,11 @@ KCP defines a protocol for **knowledge artifacts** — signed, content-addressed
 
 | SDK | Language | Tests | Status |
 |-----|----------|-------|--------|
-| Python | Python 3.13 · pytest | ✅ **61 tests** | Production-ready |
+| Python | Python 3.13 · pytest | ✅ **96 tests** | Production-ready |
 | TypeScript | Node.js 25 · Jest | ✅ **37 tests** | Production-ready |
 | Go | Go 1.22 · go test | ✅ **64 tests** | Production-ready |
 | **MCP Bridge** | Python · pytest-asyncio | ✅ **23 tests** | Production-ready |
-| **Total** | | ✅ **185 tests** | All passing |
+| **Total** | | ✅ **220 tests** | All passing |
 
 ## Quick Start
 
@@ -78,7 +78,10 @@ make demo-read               # Session 2: NEW process reads, searches, verifies 
 # Demo 2 — MCP tools: all 6 MCP tools working standalone (no editor needed)
 make demo-mcp
 
-# Demo 3 — connect to your editor (Claude Desktop, Cursor, Windsurf)
+# Demo 3 — peer sync: two nodes exchange knowledge over HTTP
+make peer-demo
+
+# Demo 4 — connect to your editor (Claude Desktop, Cursor, Windsurf)
 make setup-mcp-claude        # auto-configures Claude Desktop
 make setup-mcp-cursor        # auto-configures Cursor
 make setup-mcp-windsurf      # auto-configures Windsurf

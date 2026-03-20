@@ -463,12 +463,22 @@ class LocalStore:
 
     def get_artifact_with_content(self, artifact_id: str) -> Optional[dict]:
         """Get artifact metadata + content for sync export."""
-        artifact = self.get(artifact_id)
-        if not artifact:
+        conn = self._get_conn()
+        row = conn.execute(
+            "SELECT * FROM kcp_artifacts WHERE id = ? AND deleted_at IS NULL",
+            (artifact_id,),
+        ).fetchone()
+        if not row:
             return None
 
+        artifact = self._row_to_artifact(row)
         content = self.get_content(artifact.content_hash)
         result = artifact.to_dict()
+
+        # Include derived_from for lineage preservation across nodes
+        if row["derived_from"]:
+            result["derived_from"] = row["derived_from"]
+
         if content:
             import base64
             result["_content_b64"] = base64.b64encode(content).decode("utf-8")
