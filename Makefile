@@ -99,6 +99,17 @@ demo-read:
 demo-clean:
 	$(PYTHON) demo.py --clean
 
+## MCP Bridge Demo: simulate all 6 MCP tools (no Claude Desktop needed)
+demo-mcp:
+	@echo "→ KCP MCP Bridge Demo — 6 tools simulation..."
+	$(PYTHON) demo_mcp.py
+
+## Reset MCP demo database
+demo-mcp-clean:
+	@rm -f /tmp/kcp-mcp-demo.db
+	@rm -rf /tmp/kcp-mcp-demo-keys
+	@echo "✓ MCP demo state cleaned"
+
 # ─────────────────────────────────────────────
 # Build
 # ─────────────────────────────────────────────
