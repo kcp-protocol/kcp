@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="KCP — Knowledge Context Protocol — Social Card">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E1B4B"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="node-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%"   stop-color="#2563EB" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="blur-glow">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle grid lines -->
+  <g stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1">
+    <line x1="0" y1="105" x2="1200" y2="105"/>
+    <line x1="0" y1="210" x2="1200" y2="210"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="525" x2="1200" y2="525"/>
+    <line x1="150" y1="0" x2="150" y2="630"/>
+    <line x1="300" y1="0" x2="300" y2="630"/>
+    <line x1="450" y1="0" x2="450" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="750" y1="0" x2="750" y2="630"/>
+    <line x1="900" y1="0" x2="900" y2="630"/>
+    <line x1="1050" y1="0" x2="1050" y2="630"/>
+  </g>
+
+  <!-- Glow blob top-right -->
+  <ellipse cx="980" cy="160" rx="280" ry="200" fill="url(#glow)" filter="url(#blur-glow)"/>
+
+  <!-- ── LEFT PANEL: DAG visualization ── -->
+
+  <!-- Root node (source knowledge) -->
+  <circle cx="220" cy="220" r="36" fill="url(#accent)" opacity="0.9"/>
+  <circle cx="220" cy="220" r="28" fill="none" stroke="#60A5FA" stroke-width="2" stroke-opacity="0.6"/>
+  <!-- Lock icon inside root node -->
+  <rect x="211" y="217" width="18" height="14" rx="3" fill="white" opacity="0.95"/>
+  <path d="M214 217 Q214 208 220 208 Q226 208 226 217" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.95"/>
+
+  <!-- Lines: root → child 1 (bottom-left) -->
+  <line x1="200" y1="253" x2="130" y2="350" stroke="url(#node-grad)" stroke-width="2" stroke-opacity="0.7" stroke-linecap="round"/>
+  <!-- Lines: root → child 2 (bottom-center) -->
+  <line x1="220" y1="256" x2="220" y2="350" stroke="url(#node-grad)" stroke-width="2" stroke-opacity="0.7" stroke-linecap="round"/>
+  <!-- Lines: root → child 3 (bottom-right) -->
+  <line x1="240" y1="253" x2="310" y2="350" stroke="url(#node-grad)" stroke-width="2" stroke-opacity="0.7" stroke-linecap="round"/>
+
+  <!-- Child nodes (derived artifacts) -->
+  <circle cx="128" cy="375" r="24" fill="#1E3A5F" stroke="#3B82F6" stroke-width="2"/>
+  <circle cx="220" cy="375" r="24" fill="#1E3A5F" stroke="#3B82F6" stroke-width="2"/>
+  <circle cx="312" cy="375" r="24" fill="#1E3A5F" stroke="#7C3AED" stroke-width="2"/>
+
+  <!-- Grandchild: child 1 → leaf -->
+  <line x1="128" y1="399" x2="128" y2="460" stroke="url(#node-grad)" stroke-width="1.5" stroke-opacity="0.5" stroke-linecap="round"/>
+  <circle cx="128" cy="476" r="14" fill="#0F2744" stroke="#60A5FA" stroke-width="1.5" stroke-opacity="0.6"/>
+
+  <!-- Grandchild: child 3 → leaf -->
+  <line x1="312" y1="399" x2="312" y2="460" stroke="url(#node-grad)" stroke-width="1.5" stroke-opacity="0.5" stroke-linecap="round"/>
+  <circle cx="312" cy="476" r="14" fill="#0F2744" stroke="#A78BFA" stroke-width="1.5" stroke-opacity="0.6"/>
+
+  <!-- DAG label -->
+  <text x="220" y="540" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="13" font-weight="500" fill="#6B7280" text-anchor="middle" letter-spacing="1">LINEAGE DAG</text>
+
+  <!-- Vertical divider -->
+  <line x1="430" y1="80" x2="430" y2="550" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1"/>
+
+  <!-- ── RIGHT PANEL: Text content ── -->
+
+  <!-- "Layer 8" badge -->
+  <rect x="490" y="90" width="108" height="30" rx="15" fill="#2563EB" fill-opacity="0.2" stroke="#2563EB" stroke-width="1" stroke-opacity="0.5"/>
+  <text x="544" y="110" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="13" font-weight="600" fill="#60A5FA" text-anchor="middle" letter-spacing="1">LAYER  8</text>
+
+  <!-- Main title: KCP -->
+  <text x="490" y="200" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="96" font-weight="800" fill="white" letter-spacing="-4">KCP</text>
+
+  <!-- Subtitle -->
+  <text x="490" y="245" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="22" font-weight="300" fill="#93C5FD" letter-spacing="0.5">Knowledge Context Protocol</text>
+
+  <!-- Horizontal rule -->
+  <rect x="490" y="268" width="60" height="3" rx="1.5" fill="url(#accent)"/>
+
+  <!-- Description -->
+  <text x="490" y="320" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="18" font-weight="400" fill="#CBD5E1">Persistência, linhagem e governança</text>
+  <text x="490" y="348" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="18" font-weight="400" fill="#CBD5E1">do conhecimento gerado por IA.</text>
+
+  <!-- Stats row -->
+  <!-- Python -->
+  <rect x="490" y="390" width="130" height="56" rx="10" fill="#FFFFFF" fill-opacity="0.05" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1"/>
+  <text x="555" y="414" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="11" font-weight="500" fill="#6B7280" text-anchor="middle">Python</text>
+  <text x="555" y="435" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="18" font-weight="700" fill="#34D399" text-anchor="middle">61 ✓</text>
+
+  <!-- TypeScript -->
+  <rect x="634" y="390" width="130" height="56" rx="10" fill="#FFFFFF" fill-opacity="0.05" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1"/>
+  <text x="699" y="414" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="11" font-weight="500" fill="#6B7280" text-anchor="middle">TypeScript</text>
+  <text x="699" y="435" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="18" font-weight="700" fill="#34D399" text-anchor="middle">37 ✓</text>
+
+  <!-- Go -->
+  <rect x="778" y="390" width="110" height="56" rx="10" fill="#FFFFFF" fill-opacity="0.05" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="1"/>
+  <text x="833" y="414" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="11" font-weight="500" fill="#6B7280" text-anchor="middle">Go</text>
+  <text x="833" y="435" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="18" font-weight="700" fill="#34D399" text-anchor="middle">64 ✓</text>
+
+  <!-- MCP Bridge -->
+  <rect x="902" y="390" width="148" height="56" rx="10" fill="#FFFFFF" fill-opacity="0.05" stroke="#7C3AED" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="976" y="414" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="11" font-weight="500" fill="#6B7280" text-anchor="middle">MCP Bridge</text>
+  <text x="976" y="435" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="18" font-weight="700" fill="#A78BFA" text-anchor="middle">23 ✓</text>
+
+  <!-- Total tests label -->
+  <text x="490" y="476" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="14" font-weight="500" fill="#475569">185 testes passando · MIT · Open Source</text>
+
+  <!-- URL -->
+  <text x="490" y="540" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="15" font-weight="400" fill="#2563EB">github.com/kcp-protocol/kcp</text>
+  <text x="790" y="540" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="15" font-weight="400" fill="#475569">  ·  kcp-protocol.org</text>
+
+  <!-- Bottom border accent -->
+  <rect x="0" y="622" width="1200" height="8" fill="url(#accent)"/>
+</svg>

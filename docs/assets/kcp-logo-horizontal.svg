@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" width="280" height="64" role="img" aria-label="KCP — Knowledge Context Protocol">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#1D4ED8"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="chain-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#BFDBFE"/>
+      <stop offset="100%" stop-color="#DDD6FE"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon background -->
+  <rect x="0" y="0" width="64" height="64" rx="14" fill="url(#bg-grad)"/>
+
+  <!-- DAG: top node -->
+  <circle cx="32" cy="13" r="5" fill="white" opacity="0.95"/>
+  <!-- Lines -->
+  <line x1="29" y1="17" x2="19" y2="39" stroke="url(#chain-grad)" stroke-width="1.8" stroke-linecap="round"/>
+  <line x1="35" y1="17" x2="45" y2="39" stroke="url(#chain-grad)" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- Bottom nodes -->
+  <circle cx="18" cy="43" r="5" fill="white" opacity="0.80"/>
+  <circle cx="46" cy="43" r="5" fill="white" opacity="0.80"/>
+
+  <!-- Lock glyph (cryptographic identity) -->
+  <rect x="27" y="26" width="10" height="8" rx="2" fill="white" opacity="0.9"/>
+  <path d="M29 26 Q29 21 32 21 Q35 21 35 26" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- "KCP" small label inside icon -->
+  <text x="32" y="59" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="7.5" font-weight="700" fill="white" text-anchor="middle" letter-spacing="1.5" opacity="0.85">KCP</text>
+
+  <!-- Wordmark: "KCP" large -->
+  <text x="80" y="30" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="26" font-weight="800" fill="#111827" letter-spacing="-0.5">KCP</text>
+
+  <!-- Divider dot -->
+  <circle cx="128" cy="24" r="2.5" fill="#2563EB"/>
+
+  <!-- Tagline -->
+  <text x="80" y="46" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="10" font-weight="400" fill="#6B7280" letter-spacing="0.3">Knowledge Context Protocol</text>
+
+  <!-- "Layer 8" badge -->
+  <rect x="185" y="13" width="50" height="18" rx="9" fill="#EFF6FF"/>
+  <text x="210" y="25.5" font-family="'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif"
+        font-size="9" font-weight="600" fill="#2563EB" text-anchor="middle" letter-spacing="0.3">Layer 8</text>
+</svg>

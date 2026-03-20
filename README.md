@@ -1,4 +1,8 @@
-# ⚛ KCP — Knowledge Context Protocol
+<p align="center">
+  <img src="docs/assets/kcp-logo-horizontal.svg" alt="KCP — Knowledge Context Protocol" width="280"/>
+</p>
+
+# KCP — Knowledge Context Protocol
 
 **A new architectural layer for AI-generated knowledge governance.**
 
