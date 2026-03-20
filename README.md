@@ -64,6 +64,26 @@ pip install kcp              # Core
 pip install kcp[server]      # + HTTP server for P2P
 ```
 
+### Try it now (interactive demos)
+
+```bash
+git clone https://github.com/kcp-protocol/kcp
+cd kcp
+make setup-python            # create venv + install deps
+
+# Demo 1 — cross-session: publish in one process, read in another
+make demo                    # Session 1: publish 3 artifacts
+make demo-read               # Session 2: NEW process reads, searches, verifies signatures
+
+# Demo 2 — MCP tools: all 6 MCP tools working standalone (no editor needed)
+make demo-mcp
+
+# Demo 3 — connect to your editor (Claude Desktop, Cursor, Windsurf)
+make setup-mcp-claude        # auto-configures Claude Desktop
+make setup-mcp-cursor        # auto-configures Cursor
+make setup-mcp-windsurf      # auto-configures Windsurf
+```
+
 ### Use as library (no server)
 
 ```python
@@ -148,50 +168,23 @@ All modes use the **same API**. The backend is transparent to the user.
 kcp/
 ├── SPEC.md                    # Protocol specification
 ├── ARCHITECTURE.md            # Architecture & design
-├── AI_AGENT_GUIDE.md          # Integration guide for AI agents & LLMs
-├── llms.txt                   # LLM indexing manifest (llmstxt.org)
-├── RFC-001-CORE.md            # Formal RFC (root)
-├── GENESIS.json               # Protocol genesis block
-├── KCP_MANIFEST.json          # Protocol manifest
+├── demo.py                    # Cross-session demo (make demo + make demo-read)
+├── demo_mcp.py                # MCP tools demo — 6 tools standalone (make demo-mcp)
+├── Makefile                   # All tasks: test, demo, setup-mcp-*
 ├── sdk/
 │   ├── python/                # Python SDK (reference implementation)
-│   │   ├── kcp/
-│   │   │   ├── node.py        # Embedded KCP node
-│   │   │   ├── store.py       # SQLite storage backend
-│   │   │   ├── hub.py         # Corporate hub client
-│   │   │   ├── crypto.py      # Ed25519 + SHA-256
-│   │   │   ├── models.py      # Data models
-│   │   │   ├── client.py      # HTTP client
-│   │   │   ├── cli.py         # CLI interface
-│   │   │   └── ui/
-│   │   │       └── index.html # Web UI (single-file)
-│   │   └── pyproject.toml
 │   ├── go/                    # Go SDK (Go 1.22, 64 tests ✅)
-│   │   ├── cmd/kcp/main.go    # CLI entrypoint
-│   │   ├── pkg/crypto/        # Crypto (Ed25519 + SHA-256)
-│   │   ├── pkg/models/        # Data models
-│   │   ├── pkg/node/          # Embedded KCP node
-│   │   ├── pkg/store/         # SQLite storage backend
-│   │   └── go.mod
-│   └── typescript/            # TypeScript SDK (implemented)
-│       ├── src/
-│       │   ├── models.ts      # Data models
-│       │   ├── crypto.ts      # Ed25519 + SHA-256
-│       │   ├── store.ts       # JSON file storage backend
-│       │   ├── node.ts        # KCPNode — main API
-│       │   └── index.ts       # Barrel exports
-│       ├── tests/
-│       │   └── kcp.test.ts    # Jest test suite
-│       └── package.json
-├── rfcs/                      # Formal RFCs
-├── poc/                       # Proof of concept
-│   └── kcp_core.py
-├── docs/                      # Documentation
-│   ├── whitepaper.md
-│   ├── comparison.md
-│   ├── use-cases.md
-│   ├── roadmap.md
-│   └── presentation.html      # Executive presentation (PT-BR)
+│   └── typescript/            # TypeScript SDK (37 tests ✅)
+├── mcp-server/                # MCP Bridge (23 tests ✅)
+│   ├── kcp_mcp_server/
+│   │   └── server.py          # 6 MCP tools: publish, search, get, lineage, list, stats
+│   ├── setup_mcp.py           # Auto-configure Claude Desktop / Cursor / Windsurf
+│   └── tests/                 # 23 async tests
+├── rfcs/                      # Formal RFCs (KCP-001, KCP-002)
+├── docs/                      # Documentation + landing page
+│   ├── index.html             # Landing page (kcp-protocol.org)
+│   ├── assets/                # Logo SVGs + social card
+│   └── *.md                   # Whitepaper, comparison, use-cases, roadmap
 └── examples/                  # Example payloads
 ```
 

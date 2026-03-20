@@ -387,13 +387,15 @@
                 <div class="sdk-icon">🔌</div>
                 <div class="sdk-name">MCP Bridge</div>
                 <div class="sdk-tests" style="color:var(--purple)">✅ 23 testes passando</div>
-                <div class="sdk-detail"><code>kcp_publish</code> · <code>kcp_search</code><br>Claude Desktop · Cursor · Windsurf</div>
+                <div class="sdk-detail"><code>kcp_publish</code> · <code>kcp_search</code> · <code>kcp_lineage</code><br>Claude Desktop · Cursor · Windsurf · <code>setup_mcp.py</code></div>
             </div>
         </div>
         <div style="margin-top:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem" class="fade-up">
             <div style="padding:1.25rem 1.5rem;background:var(--green-soft);border:1px solid var(--green-mid);border-radius:var(--radius)"><div style="font-weight:700;color:var(--green);margin-bottom:.375rem">✅ Publish + Search</div><div style="font-size:.875rem;color:var(--text-muted)">Artefatos publicados, busca FTS em &lt;5ms, assinatura válida verificada</div></div>
             <div style="padding:1.25rem 1.5rem;background:var(--green-soft);border:1px solid var(--green-mid);border-radius:var(--radius)"><div style="font-weight:700;color:var(--green);margin-bottom:.375rem">✅ Lineage Chain</div><div style="font-size:.875rem;color:var(--text-muted)">Root → derivado funcional. Rastreabilidade cross-artifact completa</div></div>
-            <div style="padding:1.25rem 1.5rem;background:var(--green-soft);border:1px solid var(--green-mid);border-radius:var(--radius)"><div style="font-weight:700;color:var(--green);margin-bottom:.375rem">✅ Verify + Export</div><div style="font-size:.875rem;color:var(--text-muted)">JSON assinado portátil. Adulteração detectada automaticamente</div></div>
+            <div style="padding:1.25rem 1.5rem;background:var(--green-soft);border:1px solid var(--green-mid);border-radius:var(--radius)"><div style="font-weight:700;color:var(--green);margin-bottom:.375rem">✅ Cross-session Demo</div><div style="font-size:.875rem;color:var(--text-muted)">Conhecimento persiste entre processos independentes — <code>make demo</code> + <code>make demo-read</code></div></div>
+            <div style="padding:1.25rem 1.5rem;background:var(--purple-soft);border:1px solid var(--purple-mid,#c4b5fd);border-radius:var(--radius)"><div style="font-weight:700;color:var(--purple);margin-bottom:.375rem">✅ MCP Demo standalone</div><div style="font-size:.875rem;color:var(--text-muted)">6 tools simulados sem editor — JSON-RPC verificado via stdio (<code>make demo-mcp</code>)</div></div>
+            <div style="padding:1.25rem 1.5rem;background:var(--purple-soft);border:1px solid var(--purple-mid,#c4b5fd);border-radius:var(--radius)"><div style="font-weight:700;color:var(--purple);margin-bottom:.375rem">✅ Setup em 1 comando</div><div style="font-size:.875rem;color:var(--text-muted)">Auto-configura Claude Desktop, Cursor e Windsurf — <code>make setup-mcp-claude</code></div></div>
         </div>
         <div style="margin-top:1.5rem;padding:1.25rem 1.5rem;background:var(--bg-soft);border:1px solid var(--border);border-radius:var(--radius);font-size:.875rem;color:var(--text-muted)" class="fade-up">
             📦 &nbsp;<code style="background:rgba(0,0,0,.06);padding:.2em .5em;border-radius:4px;margin-right:1rem">pip install kcp</code><code style="background:rgba(0,0,0,.06);padding:.2em .5em;border-radius:4px;margin-right:1rem">npm install @kcp-protocol/kcp</code><code style="background:rgba(0,0,0,.06);padding:.2em .5em;border-radius:4px">go get github.com/kcp-protocol/kcp</code>
@@ -471,6 +473,9 @@
                     <li>✅ Go SDK — 64 testes</li>
                     <li>✅ MCP Bridge — 23 testes</li>
                     <li>✅ Total: 185 testes passando</li>
+                    <li>✅ Demo cross-session (make demo)</li>
+                    <li>✅ Demo MCP 6 tools (make demo-mcp)</li>
+                    <li>✅ Setup automático para Claude/Cursor/Windsurf</li>
                 </ul>
             </div>
             <div class="roadmap-card fade-up d2" style="border-color:var(--blue-mid)">
@@ -489,6 +494,7 @@
             <div class="roadmap-card fade-up d3">
                 <h3 style="color:var(--text-2)">⚪ Fase 3 — Padrão</h3>
                 <ul>
+                    <li>☐ Cloud peer público (nó de referência)</li>
                     <li>☐ IPFS + libp2p (P2P)</li>
                     <li>☐ KCP Native Format (.kcp)</li>
                     <li>☐ RFC submetido (IETF)</li>
