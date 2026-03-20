@@ -1,49 +1,35 @@
 {
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "version": "1",
+  "_comment": "KCP KnowledgeArtifact — canonical example matching the SDK schema (sdk/python/kcp/models.py)",
+  "artifact_id": "550e8400-e29b-41d4-a716-446655440000",
   "user_id": "alice@example.com",
   "tenant_id": "acme-corp",
-  "team": "data-science",
+  "title": "Q1 2026 Customer Churn Analysis",
+  "format": "html",
   "tags": [
     "customer-analytics",
     "churn-prediction",
-    "machine-learning"
+    "machine-learning",
+    "q1-2026"
   ],
-  "source": "jupyter-agent-v1.2.3",
-  "timestamp": "2026-03-11T18:30:00Z",
-  "format": "html",
-  "visibility": "team",
-  "title": "Q1 2026 Customer Churn Analysis",
   "summary": "Predictive model identifying high-risk customer segments with 87% accuracy. Recommends targeted retention campaigns for 3 key segments.",
-  "lineage": {
-    "query": "Predict customer churn using 12 months of transaction history and support ticket data",
-    "data_sources": [
-      "postgres://analytics-db/customers",
-      "s3://data-lake/transactions/2025-2026",
-      "zendesk://api/tickets"
-    ],
-    "agent": "jupyter-agent-v1.2.3",
-    "parent_reports": [
-      "ab12cd34-5678-90ef-ghij-klmnopqrstuv",
-      "cd34ef56-7890-12ab-cdef-ghijklmnopqr"
-    ]
-  },
-  "content_url": "ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
   "content_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "embeddings": [
-    0.023, -0.145, 0.678, -0.234, 0.891,
-    -0.456, 0.123, 0.789, -0.012, 0.567
-  ],
-  "signature": "a1b2c3d4e5f6789012345678901234567890123456789012345678901234567890123456789012345678901234567890",
+  "signature": "a1b2c3d4e5f6789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890ab",
+  "public_key": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+  "lineage": {
+    "parent_id": "ab12cd34-5678-90ef-ghij-klmnopqrstuv",
+    "source_description": "Predict customer churn using 12 months of transaction history and support ticket data"
+  },
   "acl": {
-    "allowed_tenants": [],
+    "visibility": "team",
     "allowed_users": [
       "bob@example.com",
       "charlie@example.com"
     ],
     "allowed_teams": [
-      "team:data-science",
-      "team:executive"
+      "data-science",
+      "executive"
     ]
-  }
+  },
+  "created_at": "2026-03-20T00:00:00Z"
 }
+

@@ -1,3 +1,12 @@
+---
+title: KCP Protocol Specification
+description: Full specification of the Knowledge Context Protocol (KCP) — Layer 8 for persistent governance, discovery, and lineage tracking of AI-generated knowledge.
+tags: [kcp, protocol, specification, layer8, knowledge-governance, lineage, ed25519, ai-protocol, open-standard]
+version: "0.1"
+status: experimental-draft
+updated: "2026-03-20"
+---
+
 # KCP Protocol Specification v0.1
 
 **Status:** Experimental Draft  

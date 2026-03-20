@@ -117,10 +117,18 @@ Resposta:
 
 - **[Especificação do Protocolo (SPEC.md)](SPEC.md)** — Spec técnica completa (v0.1)
 - **[Arquitetura (ARCHITECTURE.md)](ARCHITECTURE.md)** — Decisões de design, storage, P2P sync
+- **[Guia para Agentes de IA (AI_AGENT_GUIDE.md)](AI_AGENT_GUIDE.md)** — Como integrar agentes ao KCP
+- **[RFC-001-CORE.md](RFC-001-CORE.md)** — RFC raiz do protocolo
+- **[RFC KCP-001 (detalhada)](rfcs/kcp-001-core.md)** — Especificação formal completa
 - **[Whitepaper](docs/whitepaper.md)** — Paper acadêmico (20+ páginas)
 - **[Comparação com Prior Art](docs/comparison.md)** — vs Semantic Web (RDF/SPARQL), MCP, Layer 8 tradicional
 - **[Casos de Uso](docs/use-cases.md)** — 10 cenários reais
 - **[Roadmap](docs/roadmap.md)** — Plano de desenvolvimento em 6 fases
+- **[Apresentação Executiva](docs/presentation.html)** — Slides interativos (PT-BR)
+- **[Python SDK](sdk/python/README.md)** — SDK Python (referência)
+- **[Go SDK](sdk/go/README.md)** — SDK Go (implementado)
+- **[TypeScript SDK](sdk/typescript/README.md)** — SDK TypeScript (implementado)
+- **[Contributing](CONTRIBUTING.md)** — Como contribuir
 
 ---
 
@@ -128,9 +136,9 @@ Resposta:
 
 SDKs disponíveis em:
 
-- **[Python](sdk/python/)** — Cliente de referência
-- **[TypeScript](sdk/typescript/)** — Suporte Node.js + browser
-- **[Go](sdk/go/)** — Implementação de alta performance (planejado)
+- **[Python](sdk/python/)** — Cliente de referência (implementado)
+- **[Go](sdk/go/)** — Implementação de alta performance (implementado)
+- **[TypeScript](sdk/typescript/)** — Suporte Node.js + browser (implementado)
 
 ---
 
@@ -172,7 +180,7 @@ Impacto real medido em adoções iniciais:
 ### Fase 2: Escala (Meses 2-4)
 - [ ] Integração com Vector DB (busca semântica)
 - [ ] RBAC multi-tenant
-- [ ] SDKs TypeScript + Go
+- [ ] SDKs TypeScript ✅ Go ✅
 - [ ] 100 usuários
 
 ### Fase 3: Padronização (Meses 4-6)

@@ -6,3 +6,19 @@ __pycache__/
 dist/
 build/
 .pytest_cache/
+
+# Python isolated environment
+sdk/python/.venv/
+
+# TypeScript build artifacts and dependencies
+sdk/typescript/node_modules/
+sdk/typescript/dist/
+
+# Go build artifacts
+sdk/go/bin/
+
+# KCP local data stores (created at runtime)
+**/.kcp/
+
+# OS artifacts
+.DS_Store

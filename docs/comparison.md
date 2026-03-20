@@ -1,3 +1,10 @@
+---
+title: KCP vs Prior Art — Detailed Comparison
+description: How KCP compares to Semantic Web (RDF/SPARQL), Model Context Protocol (MCP), Knowledge Graphs, Git, and other knowledge management technologies.
+tags: [kcp, comparison, semantic-web, mcp, knowledge-graphs, git, rdf, sparql, ipfs, prior-art]
+updated: "2026-03-20"
+---
+
 # KCP vs Prior Art — Detailed Comparison
 
 ## Overview

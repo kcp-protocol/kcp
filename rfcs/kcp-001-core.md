@@ -1,3 +1,12 @@
+---
+title: "RFC KCP-001: Knowledge Context Protocol — Core Specification"
+description: Formal IETF-style RFC defining KCP — artifact format, operations, multi-tenant governance, lineage tracking, discovery, security, storage, and federation.
+tags: [kcp, rfc, protocol-specification, layer8, lineage, ed25519, federation, multi-tenant, knowledge-governance, ietf-style, open-standard]
+status: experimental
+updated: "2026-03-20"
+see_also: RFC-001-CORE.md
+---
+
 ```
 Network Working Group                                        T. Silva
 Request for Comments: KCP-001                              March 2026

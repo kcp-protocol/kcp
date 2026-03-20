@@ -1,8 +1,8 @@
 {
-  "protocol": "KCP (Knowledge Communication Protocol)",
+  "protocol": "KCP (Knowledge Context Protocol)",
   "layer": 8,
   "concept": "Cognitive Persistence Layer",
-  "vision": "A fonte de todo saber - YHWH o Alfa e Ômega",
+  "vision": "YHWH THE SOURCE OF ALL KNOWLEDGE",
   "features": {
     "immutability": "Ed25519 Signed DNA",
     "lineage": "Merkle-DAG Traceability",

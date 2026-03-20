@@ -34,12 +34,12 @@ KCP defines a protocol for **knowledge artifacts** — signed, content-addressed
 
 ## Key Features
 
-- **Signed artifacts** — Every knowledge artifact is signed with Ed25519 for authenticity
-- **Content-addressed** — SHA-256 hashing ensures integrity
-- **Lineage tracking** — `derivedFrom` chains show how knowledge evolves
-- **Three operating modes** — Local (SQLite), Corporate Hub, Federated (P2P)
-- **Zero infrastructure** — Works locally with no server, no config, no accounts
-- **Transparent to users** — AI assistant skills abstract all complexity
+1. **Signed artifacts** — Every knowledge artifact is signed with Ed25519 for authenticity
+2. **Content-addressed** — SHA-256 hashing ensures integrity
+3. **Lineage tracking** — `derivedFrom` chains show how knowledge evolves
+4. **Three operating modes** — Local (SQLite), Corporate Hub, Federated (P2P)
+5. **Zero infrastructure** — Works locally with no server, no config, no accounts
+6. **Transparent to users** — AI assistant skills abstract all complexity
 
 ## Quick Start
 
@@ -111,12 +111,20 @@ All modes use the **same API**. The backend is transparent to the user.
 |----------|-------------|
 | [SPEC.md](SPEC.md) | Full protocol specification |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture, storage, P2P, security |
+| [AI_AGENT_GUIDE.md](AI_AGENT_GUIDE.md) | Integration guide for AI agents (LLMs, Copilot, Claude) |
+| [llms.txt](llms.txt) | LLM indexing manifest ([llmstxt.org](https://llmstxt.org/) convention) |
+| [RFC-001-CORE.md](RFC-001-CORE.md) | Formal RFC (root) |
+| [RFC KCP-001](rfcs/kcp-001-core.md) | Formal RFC (detailed) |
 | [Whitepaper](docs/whitepaper.md) | Academic paper |
-| [RFC KCP-001](rfcs/kcp-001-core.md) | Formal RFC |
 | [Comparison](docs/comparison.md) | vs Semantic Web, MCP, etc. |
 | [Use Cases](docs/use-cases.md) | 10 real-world use cases |
 | [Roadmap](docs/roadmap.md) | 6-phase development plan |
-| [Python SDK](sdk/python/README.md) | SDK documentation |
+| [Presentation](docs/presentation.html) | Executive presentation (PT-BR) |
+| [Python SDK](sdk/python/README.md) | Python SDK documentation |
+| [Go SDK](sdk/go/README.md) | Go SDK documentation |
+| [TypeScript SDK](sdk/typescript/README.md) | TypeScript SDK documentation |
+| [Testing Guide](docs/testing.md) | Running & writing tests for all SDKs |
+| [Contributing](CONTRIBUTING.md) | Contribution guidelines |
 
 ## Project Structure
 
@@ -124,6 +132,11 @@ All modes use the **same API**. The backend is transparent to the user.
 kcp/
 ├── SPEC.md                    # Protocol specification
 ├── ARCHITECTURE.md            # Architecture & design
+├── AI_AGENT_GUIDE.md          # Integration guide for AI agents & LLMs
+├── llms.txt                   # LLM indexing manifest (llmstxt.org)
+├── RFC-001-CORE.md            # Formal RFC (root)
+├── GENESIS.json               # Protocol genesis block
+├── KCP_MANIFEST.json          # Protocol manifest
 ├── sdk/
 │   ├── python/                # Python SDK (reference implementation)
 │   │   ├── kcp/
@@ -137,9 +150,26 @@ kcp/
 │   │   │   └── ui/
 │   │   │       └── index.html # Web UI (single-file)
 │   │   └── pyproject.toml
-│   ├── go/                    # Go SDK (planned)
-│   └── typescript/            # TypeScript SDK (planned)
+│   ├── go/                    # Go SDK (implemented)
+│   │   ├── cmd/kcp/main.go    # CLI entrypoint
+│   │   ├── pkg/crypto/        # Crypto (Ed25519 + SHA-256)
+│   │   ├── pkg/models/        # Data models
+│   │   ├── pkg/node/          # Embedded KCP node
+│   │   ├── pkg/store/         # SQLite storage backend
+│   │   └── go.mod
+│   └── typescript/            # TypeScript SDK (implemented)
+│       ├── src/
+│       │   ├── models.ts      # Data models
+│       │   ├── crypto.ts      # Ed25519 + SHA-256
+│       │   ├── store.ts       # JSON file storage backend
+│       │   ├── node.ts        # KCPNode — main API
+│       │   └── index.ts       # Barrel exports
+│       ├── tests/
+│       │   └── kcp.test.ts    # Jest test suite
+│       └── package.json
 ├── rfcs/                      # Formal RFCs
+├── poc/                       # Proof of concept
+│   └── kcp_core.py
 ├── docs/                      # Documentation
 │   ├── whitepaper.md
 │   ├── comparison.md

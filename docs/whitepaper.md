@@ -1,3 +1,12 @@
+---
+title: "KCP Whitepaper: A New Architectural Layer for AI-Generated Knowledge Governance"
+description: Academic paper introducing KCP — protocol specification, comparison with prior art, federated P2P architecture, and early adoption metrics.
+tags: [kcp, whitepaper, knowledge-governance, ai-protocol, layer8, lineage, federation, semantic-web, mcp, research]
+version: "1.0"
+status: draft
+updated: "2026-03-20"
+---
+
 # Whitepaper: Knowledge Context Protocol (KCP)
 
 ## A New Architectural Layer for AI-Generated Knowledge Governance

@@ -1,3 +1,10 @@
+---
+title: KCP Use Cases
+description: Ten real-world scenarios where KCP solves concrete problems — analytics discovery, compliance, lineage tracking, cross-org federation, and more.
+tags: [kcp, use-cases, analytics, compliance, lineage, knowledge-reuse, enterprise, ai-governance, federation, audit]
+updated: "2026-03-20"
+---
+
 # KCP Use Cases
 
 Ten real-world scenarios where KCP solves concrete problems.

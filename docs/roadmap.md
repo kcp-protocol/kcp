@@ -18,7 +18,7 @@ KCP becomes the standard protocol for AI-generated knowledge — from personal u
 
 - [x] Protocol specification (SPEC.md)
 - [x] Architecture design (3 operating modes: local, hub, federation)
-- [x] Python SDK (reference implementation)
+- [x] Python SDK — reference implementation (Python 3.13, **61 tests ✅**)
   - [x] Embedded node (in-process, no server needed)
   - [x] Local storage (SQLite + FTS5)
   - [x] Ed25519 signing and verification
@@ -30,11 +30,19 @@ KCP becomes the standard protocol for AI-generated knowledge — from personal u
   - [x] Web UI (embedded single-page HTML)
   - [x] HTTP API (FastAPI) for P2P sharing
   - [x] Hub backend client (for corporate deployments)
-- [x] Go SDK (store, node, crypto, CLI — build pending)
-- [x] RFC (kcp-001-core.md)
+- [x] TypeScript SDK — Node.js 25, ESM + CJS + DTS (**37 tests ✅**)
+  - [x] KCPNode (publish, get, search, verify, lineage, stats)
+  - [x] Ed25519 + SHA-256 via @noble/* (zero native deps)
+  - [x] JSON file storage backend
+- [x] Go SDK (store, node, crypto, CLI — implemented ✅)
+- [x] RFC (kcp-001-core.md + RFC-001-CORE.md)
 - [x] Whitepaper
 - [x] Executive presentation
-- [x] AI assistant skill (natural language interface)
+- [x] AI_AGENT_GUIDE.md (LLM integration guide)
+- [x] llms.txt (LLM indexing manifest)
+- [x] docs/testing.md (full test documentation)
+- [x] Root Makefile (unified test/build/setup orchestration)
+- [x] Isolated SDK environments (.python-version, .nvmrc, .go-version)
 
 ---
 

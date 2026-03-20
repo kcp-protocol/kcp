@@ -32,12 +32,46 @@ The most valuable contribution right now is **feedback on the protocol design**:
 git clone https://github.com/tgosoul2019/kcp.git
 cd kcp
 
-# Python SDK development
+# Python SDK — isolated virtual environment (Python 3.13)
 cd sdk/python
-python -m venv venv
-source venv/bin/activate
+python3.13 -m venv .venv
+source .venv/bin/activate      # macOS / Linux
+# .venv\Scripts\activate       # Windows
 pip install -e ".[dev]"
+
+# TypeScript SDK — Node.js 25.x
+cd sdk/typescript
+npm install
+
+# Go SDK — Go 1.22+
+cd sdk/go
+go mod download
 ```
+
+Or use the root Makefile to set up everything at once:
+
+```bash
+make setup        # all SDKs
+make setup-python # Python only
+make setup-ts     # TypeScript only
+make setup-go     # Go only
+```
+
+## Running Tests
+
+Each SDK has an isolated environment and its own test suite. See [docs/testing.md](docs/testing.md) for the full guide. Quick reference:
+
+```bash
+make test          # all SDKs
+make test-python   # 61 pytest tests
+make test-ts       # 37 Jest tests
+make test-go       # Go standard tests
+```
+
+**Requirements before opening a PR:**
+- All existing tests must pass
+- New features must include corresponding tests
+- Test files mirror the source structure (`kcp/crypto.py` → `tests/test_crypto.py`)
 
 ## Code Style
 

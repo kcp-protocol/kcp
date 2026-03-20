@@ -1,3 +1,11 @@
+---
+title: KCP Architecture
+description: KCP operating modes (Local / Hub / Federation), storage backends, P2P sync, crypto model, and layered architecture.
+tags: [kcp, architecture, p2p, sqlite, ed25519, federation, multi-tenant, layer8, knowledge-governance]
+version: "0.2"
+updated: "2026-03-20"
+---
+
 # KCP Architecture
 
 **Version:** 0.2  
