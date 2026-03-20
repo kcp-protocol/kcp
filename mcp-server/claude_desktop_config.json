@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "kcp": {
+      "command": "python",
+      "args": ["-m", "kcp_mcp_server"],
+      "env": {
+        "KCP_USER_ID": "you@example.com",
+        "KCP_TENANT_ID": "my-org",
+        "KCP_DB_PATH": "~/.kcp/kcp.db",
+        "KCP_KEYS_DIR": "~/.kcp/keys"
+      }
+    }
+  }
+}
