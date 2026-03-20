@@ -48,7 +48,8 @@ KCP defines a protocol for **knowledge artifacts** — signed, content-addressed
 | Python | Python 3.13 · pytest | ✅ **61 tests** | Production-ready |
 | TypeScript | Node.js 25 · Jest | ✅ **37 tests** | Production-ready |
 | Go | Go 1.22 · go test | ✅ **64 tests** | Production-ready |
-| **Total** | | ✅ **162 tests** | All passing |
+| **MCP Bridge** | Python · pytest-asyncio | ✅ **23 tests** | Production-ready |
+| **Total** | | ✅ **185 tests** | All passing |
 
 ## Quick Start
 
@@ -125,6 +126,7 @@ All modes use the **same API**. The backend is transparent to the user.
 | [RFC-001-CORE.md](RFC-001-CORE.md) | Formal RFC (root) |
 | [RFC KCP-001](rfcs/kcp-001-core.md) | Formal RFC (detailed) |
 | [RFC KCP-002](rfcs/kcp-002-mcp-bridge.md) | KCP ↔ MCP Bridge — persistent artifacts as MCP context |
+| [MCP Server](mcp-server/README.md) | KCP MCP Server — Claude Desktop / Cursor / Windsurf integration |
 | [Whitepaper](docs/whitepaper.md) | Academic paper |
 | [Comparison](docs/comparison.md) | vs Semantic Web, MCP, etc. |
 | [Use Cases](docs/use-cases.md) | 10 real-world use cases |

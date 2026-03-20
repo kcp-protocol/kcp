@@ -225,8 +225,8 @@
             <a href="https://github.com/kcp-protocol/kcp/blob/main/SPEC.md" target="_blank" class="btn-secondary">📄 Ler a Especificação</a>
         </div>
         <div class="stats-row fade-up d4">
-            <div class="stat-card"><div class="stat-num">3</div><div class="stat-lbl">SDKs disponíveis</div></div>
-            <div class="stat-card"><div class="stat-num">162</div><div class="stat-lbl">Testes passando</div></div>
+            <div class="stat-card"><div class="stat-num">4</div><div class="stat-lbl">SDKs + MCP Bridge</div></div>
+            <div class="stat-card"><div class="stat-num">185</div><div class="stat-lbl">Testes passando</div></div>
             <div class="stat-card"><div class="stat-num">MIT</div><div class="stat-lbl">Licença open-source</div></div>
             <div class="stat-card"><div class="stat-num">Ed25519</div><div class="stat-lbl">Assinatura digital</div></div>
         </div>
@@ -364,7 +364,7 @@
         <div class="sec-eyebrow fade-up">IMPLEMENTAÇÃO</div>
         <h2 class="fade-up">SDK funcional em 3 linguagens</h2>
         <p class="sec-desc fade-up">KCP não é só teoria. Publicação, busca, lineage, assinatura e verificação implementados e testados nos três SDKs.</p>
-        <div class="sdk-grid">
+        <div class="sdk-grid" style="grid-template-columns: repeat(4, 1fr);">
             <div class="sdk-card done fade-up d1">
                 <div class="sdk-icon">🐍</div>
                 <div class="sdk-name">Python SDK</div>
@@ -382,6 +382,12 @@
                 <div class="sdk-name">Go SDK</div>
                 <div class="sdk-tests green">✅ 64 testes passando</div>
                 <div class="sdk-detail"><code>go-sqlite3</code> · <code>Ed25519</code><br>Go 1.22 · go test · go.mod</div>
+            </div>
+            <div class="sdk-card done fade-up d4" style="border-color:var(--purple-soft);background:var(--purple-soft);">
+                <div class="sdk-icon">🔌</div>
+                <div class="sdk-name">MCP Bridge</div>
+                <div class="sdk-tests" style="color:var(--purple)">✅ 23 testes passando</div>
+                <div class="sdk-detail"><code>kcp_publish</code> · <code>kcp_search</code><br>Claude Desktop · Cursor · Windsurf</div>
             </div>
         </div>
         <div style="margin-top:1.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem" class="fade-up">
@@ -463,8 +469,8 @@
                     <li>✅ Python SDK — 61 testes</li>
                     <li>✅ TypeScript SDK — 37 testes</li>
                     <li>✅ Go SDK — 64 testes</li>
-                    <li>✅ Total: 162 testes passando</li>
-                    <li>✅ Org GitHub kcp-protocol</li>
+                    <li>✅ MCP Bridge — 23 testes</li>
+                    <li>✅ Total: 185 testes passando</li>
                 </ul>
             </div>
             <div class="roadmap-card fade-up d2" style="border-color:var(--blue-mid)">

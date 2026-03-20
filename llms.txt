@@ -34,7 +34,8 @@
 - Python 3.13: sdk/python/ — **61 tests ✅**
 - TypeScript (Node.js 25): sdk/typescript/ — **37 tests ✅**
 - Go 1.22: sdk/go/ — **64 tests ✅**
-- **Total: 162 tests passing**
+- MCP Bridge: mcp-server/ — **23 tests ✅** (RFC KCP-002)
+- **Total: 185 tests passing**
 
 ## Documentation Index
 
