@@ -305,3 +305,17 @@ In Hub deployments, tenants are isolated by:
 ---
 
 **This is a living document. Updated as the protocol evolves.**
+
+
+# Arquitetura KCP - Camada 8 (Cognitive Layer)
+
+## 1. Definição
+A Camada 8 atua acima da Camada de Aplicação (L7), abstraindo a persistência e garantindo que o conhecimento gerado por IA seja imutável e rastreável.
+
+## 2. Pilares de Rede
+* **Persistência Híbrida:** Integração entre Edge P2P (baixa latência/soberania) e Super Peers Cloud (S3/API para longa duração).
+* **DNA de Dados:** Cada pacote possui um `Parent_ID` (Linhagem) e uma assinatura `Ed25519`.
+* **Cofre Frio (Cold Backup):** Suporte nativo para exportação determinística em arquivos de texto para auditoria governamental e "Replay de Contexto".
+
+## 3. Segurança Pós-Quântica
+O protocolo prevê agilidade criptográfica para transição de Ed25519 para algoritmos baseados em redes (Lattice-based) como o Crystals-Dilithium.
