@@ -12,11 +12,75 @@ This implements **RFC KCP-002** — the KCP-to-MCP Bridge.
 
 ---
 
+## 3 Levels of Testing
+
+### Level 1 — Standalone (no editor, proves the logic)
+```bash
+make demo-mcp
+```
+Calls all 6 tools directly in Python. **Proves:** publish, search, get, lineage, list, stats all work correctly with real Ed25519 signatures and SQLite persistence. No MCP protocol involved — pure function-level validation.
+
+**What you can verify:**
+- ✅ Artifacts are published with `kcp://` URIs
+- ✅ Ed25519 signature is generated
+- ✅ SHA-256 content hash is stable
+- ✅ Lineage DAG: derived artifact correctly links to parent
+- ✅ Full-text search finds artifacts across sessions
+
+---
+
+### Level 2 — Real MCP Protocol (no editor, proves the wire protocol)
+```bash
+make test-mcp-server
+```
+Starts the actual MCP server process and sends it a real `initialize` + `tools/list` JSON-RPC message over stdin. **Proves:** the server speaks the MCP protocol and registers all 6 tools correctly — exactly as Claude Desktop or Cursor would see it.
+
+```
+✅ Server started and responded: kcp-mcp-server
+Protocol: MCP stdio JSON-RPC
+Tools registered: ['kcp_publish', 'kcp_search', 'kcp_get', 'kcp_lineage', 'kcp_list', 'kcp_stats']
+```
+
+**What you can verify:**
+- ✅ Server process starts without errors
+- ✅ Responds to MCP `initialize` handshake
+- ✅ All 6 tools are listed with correct schemas
+- ✅ The same binary that Claude/Cursor connects to
+
+---
+
+### Level 3 — Connected to a real AI assistant (end-to-end)
+
+**One-command setup:**
+```bash
+make setup-mcp-claude      # Claude Desktop
+make setup-mcp-cursor      # Cursor (global)
+make setup-mcp-cursor-local # Cursor (project-local)
+make setup-mcp-windsurf    # Windsurf
+```
+
+Restart your editor, then ask the AI:
+```
+"Use kcp_search to find anything about rate limiting"
+"Use kcp_publish to save this conversation as a knowledge artifact"
+"Use kcp_lineage to trace where this analysis came from"
+```
+
+**What you can verify:**
+- ✅ Tools appear in the AI's tool palette
+- ✅ AI calls `kcp_publish` → artifact saved to `~/.kcp/kcp.db`
+- ✅ Next session: AI calls `kcp_search` → finds artifacts from previous sessions
+- ✅ Knowledge persists across all conversations in the same editor
+
+> 💡 **This is the core value prop**: what the AI generated in Session 1 is discoverable in Session 2, with full cryptographic provenance.
+
+---
+
 ## How It Works
 
 ```
 Claude / Cursor / Windsurf
-       │  MCP protocol (stdio)
+       │  MCP protocol (stdio JSON-RPC)
        ▼
 ┌─────────────────────────┐
 │   KCP MCP Server        │  ← this package
@@ -36,48 +100,35 @@ Claude / Cursor / Windsurf
 Every AI output published via `kcp_publish` is:
 - **Signed** with Ed25519
 - **Content-addressed** with SHA-256
-- **Indexed** for full-text search
+- **Indexed** for full-text search (FTS5)
 - **Linked** in a lineage DAG via `parent_id`
-- **Addressed** with a `kcp://` URI
+- **Addressed** with a `kcp://local/artifact/{id}` URI
 
 ---
 
 ## Install
 
 ```bash
+# From repo root (recommended)
+make setup-python   # creates venv + installs all deps including MCP
+
+# Or manually
 cd mcp-server
-
-# Install KCP SDK from local source
 pip install -e ../sdk/python
-
-# Install MCP server
 pip install -e ".[dev]"
 ```
 
 ---
 
-## Quick Test
+## Quick Test (all 3 levels)
 
 ```bash
-pytest tests/ -v
-```
-
-Expected output:
-```
-tests/test_bridge.py::test_publish_basic PASSED
-tests/test_bridge.py::test_publish_with_mcp_session_id PASSED
-tests/test_bridge.py::test_publish_with_derived_from PASSED
-...
-tests/test_bridge.py::test_full_bridge_workflow PASSED
+make demo-mcp          # Level 1: standalone tools
+make test-mcp-server   # Level 2: real MCP JSON-RPC protocol
+make test-mcp          # Level 2: full pytest suite (23 tests)
 ```
 
 ---
-
-## Claude Desktop Integration
-
-Add to `~/.claude/claude_desktop_config.json`:
-
-```json
 {
   "mcpServers": {
     "kcp": {

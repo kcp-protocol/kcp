@@ -110,6 +110,35 @@ demo-mcp-clean:
 	@rm -rf /tmp/kcp-mcp-demo-keys
 	@echo "✓ MCP demo state cleaned"
 
+## Verify the MCP server starts and registers all 6 tools (no editor needed)
+test-mcp-server:
+	@echo "→ Testing MCP server startup (JSON-RPC initialize + tools/list)..."
+	PYTHONPATH=mcp-server:sdk/python $(PYTHON) mcp-server/setup_mcp.py --test
+
+## Configure Claude Desktop to use KCP MCP Server
+setup-mcp-claude:
+	@echo "→ Configuring Claude Desktop..."
+	PYTHONPATH=mcp-server:sdk/python $(PYTHON) mcp-server/setup_mcp.py --claude
+
+## Configure Cursor (global) to use KCP MCP Server
+setup-mcp-cursor:
+	@echo "→ Configuring Cursor..."
+	PYTHONPATH=mcp-server:sdk/python $(PYTHON) mcp-server/setup_mcp.py --cursor
+
+## Configure Cursor (project-local .cursor/mcp.json)
+setup-mcp-cursor-local:
+	@echo "→ Configuring Cursor (project-local)..."
+	PYTHONPATH=mcp-server:sdk/python $(PYTHON) mcp-server/setup_mcp.py --cursor --local
+
+## Configure Windsurf to use KCP MCP Server
+setup-mcp-windsurf:
+	@echo "→ Configuring Windsurf..."
+	PYTHONPATH=mcp-server:sdk/python $(PYTHON) mcp-server/setup_mcp.py --windsurf
+
+## Show current MCP configurations across all editors
+show-mcp-config:
+	PYTHONPATH=mcp-server:sdk/python $(PYTHON) mcp-server/setup_mcp.py --show
+
 # ─────────────────────────────────────────────
 # Build
 # ─────────────────────────────────────────────
