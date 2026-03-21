@@ -207,6 +207,7 @@
             <a href="#protocol" class="nav-link">Protocolo</a>
             <a href="#sdks" class="nav-link">SDKs</a>
             <a href="#mcp" class="nav-link">MCP</a>
+            <a href="#roi" class="nav-link">ROI</a>
             <a href="#peers" class="nav-link">Peers</a>
             <a href="#roadmap" class="nav-link">Roadmap</a>
             <a href="https://github.com/kcp-protocol/kcp" target="_blank" class="nav-cta">⭐ GitHub</a>
@@ -640,6 +641,135 @@
                 <div class="roi-big-lbl">ROI no primeiro ano · Payback em menos de 2 meses</div>
             </div>
         </div>
+    </div>
+</section>
+
+<!-- ROI / BUSINESS CASE -->
+<section id="roi" style="background:var(--bg)">
+    <div class="container">
+        <div class="sec-eyebrow fade-up">BUSINESS CASE</div>
+        <h2 class="fade-up">O custo invisível da IA sem memória</h2>
+        <p class="sec-desc fade-up">Dados reais de mercado — para CTOs, líderes de produto e decisores de tecnologia que precisam justificar investimentos em infraestrutura de contexto.</p>
+
+        <!-- Números reais -->
+        <div style="margin-top:2.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.25rem" class="fade-up">
+            <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);text-align:center">
+                <div style="font-size:2.25rem;font-weight:800;color:var(--blue);line-height:1">88%</div>
+                <div style="font-size:.8rem;color:var(--text-muted);margin-top:.5rem;line-height:1.5">das organizações já usam IA em ao menos uma função — mas <strong>a maioria ainda está em fase piloto</strong></div>
+                <div style="font-size:.7rem;color:var(--text-3);margin-top:.5rem">McKinsey State of AI 2025 · n=1.993</div>
+            </div>
+            <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);text-align:center">
+                <div style="font-size:2.25rem;font-weight:800;color:var(--amber,#f59e0b);line-height:1">39%</div>
+                <div style="font-size:.8rem;color:var(--text-muted);margin-top:.5rem;line-height:1.5">reportam impacto no EBIT — o principal obstáculo: <strong>contexto perdido entre sessões de agentes</strong></div>
+                <div style="font-size:.7rem;color:var(--text-3);margin-top:.5rem">McKinsey, 2025</div>
+            </div>
+            <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);text-align:center">
+                <div style="font-size:2.25rem;font-weight:800;color:var(--green);line-height:1">$0.50</div>
+                <div style="font-size:.8rem;color:var(--text-muted);margin-top:.5rem;line-height:1.5">custo médio por <em>re-injection</em> de contexto de 100K tokens com GPT-4o — repetido em <strong>cada nova sessão</strong></div>
+                <div style="font-size:.7rem;color:var(--text-3);margin-top:.5rem">OpenAI pricing 2025 · $5/MTok input</div>
+            </div>
+            <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);text-align:center">
+                <div style="font-size:2.25rem;font-weight:800;color:var(--red,#ef4444);line-height:1">62%</div>
+                <div style="font-size:.8rem;color:var(--text-muted);margin-top:.5rem;line-height:1.5">das empresas já experimentam <strong>AI agents</strong> — que dependem de contexto persistente para ser eficazes</div>
+                <div style="font-size:.7rem;color:var(--text-3);margin-top:.5rem">McKinsey State of AI 2025</div>
+            </div>
+        </div>
+
+        <!-- Comparação antes/depois -->
+        <div style="margin-top:2rem;display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:center" class="fade-up">
+            <!-- Sem KCP -->
+            <div style="padding:1.75rem;background:var(--bg-card);border:1.5px solid var(--red,#ef4444);border-radius:var(--radius-lg)">
+                <div style="font-weight:800;font-size:1rem;color:var(--red,#ef4444);margin-bottom:1rem">❌ Sem KCP — stack típico 2025</div>
+                <div style="display:grid;gap:.625rem;font-size:.875rem">
+                    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--bg-soft);border-radius:6px">
+                        <span style="color:var(--text-muted)">100 agentes × 10 sessões/dia</span>
+                        <strong>1.000 sessões</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--bg-soft);border-radius:6px">
+                        <span style="color:var(--text-muted)">Context re-injection por sessão</span>
+                        <strong>100K tokens</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--bg-soft);border-radius:6px">
+                        <span style="color:var(--text-muted)">Custo diário (GPT-4o input)</span>
+                        <strong style="color:var(--red,#ef4444)">~$500/dia</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--bg-soft);border-radius:6px">
+                        <span style="color:var(--text-muted)">Custo anual</span>
+                        <strong style="color:var(--red,#ef4444)">~$182.500/ano</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--bg-soft);border-radius:6px">
+                        <span style="color:var(--text-muted)">Continuidade de contexto</span>
+                        <strong style="color:var(--red,#ef4444)">❌ zero</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--bg-soft);border-radius:6px">
+                        <span style="color:var(--text-muted)">Agentes "esquecidos"</span>
+                        <strong style="color:var(--red,#ef4444)">100% das sessões</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seta -->
+            <div style="text-align:center;font-size:1.75rem;padding:.5rem">→</div>
+
+            <!-- Com KCP -->
+            <div style="padding:1.75rem;background:var(--bg-card);border:1.5px solid var(--green-mid);border-radius:var(--radius-lg)">
+                <div style="font-weight:800;font-size:1rem;color:var(--green);margin-bottom:1rem">✅ Com KCP</div>
+                <div style="display:grid;gap:.625rem;font-size:.875rem">
+                    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--bg-soft);border-radius:6px">
+                        <span style="color:var(--text-muted)">Context loading por sessão</span>
+                        <strong>~2K tokens (BM25)</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--bg-soft);border-radius:6px">
+                        <span style="color:var(--text-muted)">Busca semântica em artefatos</span>
+                        <strong>&lt;50ms (FTS5)</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--bg-soft);border-radius:6px">
+                        <span style="color:var(--text-muted)">Custo diário de contexto</span>
+                        <strong style="color:var(--green)">~$10/dia</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--bg-soft);border-radius:6px">
+                        <span style="color:var(--text-muted)">Economia anual estimada</span>
+                        <strong style="color:var(--green)">~$172.000/ano</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--bg-soft);border-radius:6px">
+                        <span style="color:var(--text-muted)">Continuidade de contexto</span>
+                        <strong style="color:var(--green)">✅ persistente + lineage</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:.5rem .75rem;background:var(--bg-soft);border-radius:6px">
+                        <span style="color:var(--text-muted)">Contexto compartilhado</span>
+                        <strong style="color:var(--green)">✅ multi-agente + P2P</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Casos de uso reais -->
+        <div style="margin-top:1.5rem;padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg)" class="fade-up">
+            <div style="font-weight:700;font-size:.95rem;margin-bottom:1rem;color:var(--text-2)">📊 Padrão observado no mercado — empresas usando IA em escala</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;font-size:.875rem">
+                <div>
+                    <div style="font-weight:600;color:var(--text-2);margin-bottom:.375rem">🔧 Engenharia de Software</div>
+                    <div style="color:var(--text-muted);line-height:1.75">Agentes de code review e onboarding perdem contexto entre PRs. Com KCP: histórico de decisões técnicas persistido, consultável por qualquer agente futuro.</div>
+                </div>
+                <div>
+                    <div style="font-weight:600;color:var(--text-2);margin-bottom:.375rem">📞 Atendimento ao Cliente</div>
+                    <div style="color:var(--text-muted);line-height:1.75">Cada sessão começa do zero: o agente re-lê tickets, histórico, políticas. Com KCP: artefatos de contexto carregados em &lt;50ms por query BM25 + stemming.</div>
+                </div>
+                <div>
+                    <div style="font-weight:600;color:var(--text-2);margin-bottom:.375rem">🧠 Knowledge Management</div>
+                    <div style="color:var(--text-muted);line-height:1.75">McKinsey (2025): <em>IT e Knowledge Management</em> são as áreas onde agents têm maior adoção. O gargalo é exatamente a persistência e descoberta de contexto.</div>
+                </div>
+                <div>
+                    <div style="font-weight:600;color:var(--text-2);margin-bottom:.375rem">🔬 Pesquisa e Produto</div>
+                    <div style="color:var(--text-muted);line-height:1.75">Benchmarks, decisões de design, resultados de A/B — hoje vivem em docs dispersos. Com KCP: versionados, assinados, rastreáveis por lineage DAG.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disclaimer metodologia -->
+        <p style="margin-top:1rem;font-size:.78rem;color:var(--text-3);text-align:center" class="fade-up">
+            * Estimativas baseadas em preços públicos de APIs (OpenAI GPT-4o $5/MTok input, março 2026) e benchmark interno KCP. Economia real varia com volume, modelo e taxa de cache hit. Fontes: <a href="https://www.mckinsey.com/capabilities/quantumblack/our-insights/the-state-of-ai" target="_blank" style="color:var(--blue)">McKinsey State of AI 2025</a>.
+        </p>
     </div>
 </section>
 
