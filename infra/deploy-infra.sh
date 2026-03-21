@@ -45,14 +45,17 @@ systemctl daemon-reload
 # ── 3. Configurar nginx ───────────────────────────────────────────────────────
 echo "[3/7] Configurando nginx..."
 
-# Rate limit zones no nginx.conf principal (se não existirem)
-if ! grep -q "kcp_general" /etc/nginx/nginx.conf; then
-    sed -i '/http {/a \
-    # KCP rate limit zones\
-    limit_req_zone $binary_remote_addr zone=kcp_general:10m rate=20r/s;\
-    limit_req_zone $binary_remote_addr zone=kcp_sync:10m    rate=5r/s;\
-    limit_req_zone $binary_remote_addr zone=kcp_write:10m   rate=10r/s;' \
-    /etc/nginx/nginx.conf
+# Rate limit zones: só adiciona se não existirem em NENHUM arquivo de conf
+if ! grep -r "kcp_general" /etc/nginx/ >/dev/null 2>&1; then
+    cat > /etc/nginx/conf.d/kcp-ratelimit.conf <<'EOF'
+# KCP rate limit zones
+limit_req_zone $binary_remote_addr zone=kcp_general:10m rate=20r/s;
+limit_req_zone $binary_remote_addr zone=kcp_sync:10m    rate=5r/s;
+limit_req_zone $binary_remote_addr zone=kcp_write:10m   rate=10r/s;
+EOF
+    echo "  Rate limit zones criadas em conf.d/kcp-ratelimit.conf"
+else
+    echo "  Rate limit zones já existem — skipped"
 fi
 
 # Copiar config de locations compartilhado
