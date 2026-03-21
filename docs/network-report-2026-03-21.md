@@ -68,15 +68,17 @@
 
 ### IPs únicos (peer04)
 
-**21 IPs distintos** no período. Top 5:
+**21 IPs distintos** no período. Distribuição por tipo:
 
-| IP | Requests | Origem |
-|----|----------|--------|
-| `170.85.22.208` | 199 | VS Code / Electron (IP do desenvolvedor via Zscaler) |
-| `179.193.55.228` | 15 | Brasil |
-| `149.22.83.98` | 10 | Brasil |
-| `81.29.142.6` | 9 | Europa |
-| `165.22.151.182` | 8 | O próprio VPS (cross-announce interno) |
+| Tipo | Requests | Origem |
+|------|----------|--------|
+| Dev/Monitor (VS Code + curl) | 199 | Desenvolvedor principal |
+| Visitante humano — Brasil | 15 | Visitante orgânico |
+| Visitante humano — Brasil | 10 | Visitante orgânico |
+| Visitante humano — Europa | 9 | Visitante orgânico |
+| VPS interno | 8 | O próprio peer (cross-announce) |
+
+> IPs de origem removidos por privacidade. Dados agregados por perfil de acesso.
 
 ---
 

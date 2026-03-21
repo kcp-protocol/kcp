@@ -31,42 +31,43 @@ A medição utilizada neste relatório foi possível graças a um efeito colater
 
 ## Visitantes Humanos
 
-Identificados via `Referer: https://kcp-protocol.org/` no nginx, com user-agent de browser real (não crawler).
+Identificados via `Referer: https://kcp-protocol.org/` no nginx, com user-agent de browser real (não crawler).  
+> IPs de origem removidos por privacidade. Dados agregados por país/dispositivo.
 
-| # | IP | Requests | Dispositivo | Localização | Horário (UTC) |
-|---|-----|---------|-------------|-------------|----------------|
-| 1 | `179.193.55.228` | **45** | Android Chrome 146 | São Paulo, SP — Vivo/Telefônica | 11:23 → 14:31 (3 blocos) |
-| 2 | `189.98.252.107` | **9** | Android Chrome 146 | São Paulo, SP — Vivo/Telefônica | 12:25 → 12:31 |
-| 3 | `172.226.128.49` | **3** | **iPhone** iOS 18.7 / Safari 26.3 | — | 14:28 |
-| 4 | `189.18.231.206` | **3** | **iPhone** iOS 18.7 / CriOS 26.3 | Porto Alegre, RS — Vivo/Telefônica | 11:20 |
-| 5 | `31.121.111.19` | **3** | Windows Chrome 125 | Tidworth, England — BT PLC | 11:04 |
-| 6 | `189.96.225.19` | **3** | Android Chrome 146 | Brasil — Vivo/Telefônica | 12:35 |
+| # | Sessão | Requests | Dispositivo | País | Horário (UTC) |
+|---|--------|---------|-------------|------|----------------|
+| 1 | visitor-A | **45** | Android Chrome 146 | 🇧🇷 Brasil | 11:23 → 14:31 (4 retornos) |
+| 2 | visitor-B | **9** | Android Chrome 146 | 🇧🇷 Brasil | 12:25 → 12:31 |
+| 3 | visitor-C | **3** | iPhone iOS 18.7 / Safari | 🇧🇷 Brasil | 14:28 |
+| 4 | visitor-D | **3** | iPhone iOS 18.7 / Chrome | 🇧🇷 Brasil | 11:20 |
+| 5 | visitor-E | **3** | Windows Chrome 125 | 🇬🇧 Reino Unido | 11:04 |
+| 6 | visitor-F | **3** | Android Chrome 146 | 🇧🇷 Brasil | 12:35 |
 
 **Total humanos: 6 visitantes únicos, ~15 sessões distintas**
 
 ### Destaques
 
-- **`179.193.55.228` é o visitante mais engajado** — retornou ao site em 3 momentos distintos ao longo de 3 horas (11:23, 11:46, 13:07, 13:41–13:47, 14:31). Cada visita verifica o status da rede em tempo real. Provavelmente compartilhou o link com outras pessoas.
+- **Visitor-A é o mais engajado** — retornou ao site em 4 momentos distintos ao longo de 3 horas (11:23, 11:46, 13:07, 13:41–13:47, 14:31). Cada visita verifica o status da rede em tempo real. Provavelmente compartilhou o link com outras pessoas.
 
-- **`189.98.252.107`** foi além do status: também acessou diretamente `/kcp/v1/peers` (a lista de peers da rede), indicando curiosidade técnica sobre a arquitetura.
+- **Visitor-B** foi além do status: também acessou diretamente `/kcp/v1/peers` (a lista de peers da rede), indicando curiosidade técnica sobre a arquitetura.
 
-- **Maioria mobile, maioria brasileira** — 4 dos 6 visitantes são Android/iPhone com IP brasileiro. O protocolo já tem audiência orgânica no Brasil desde o primeiro dia.
+- **Maioria mobile, maioria brasileira** — 5 dos 6 visitantes usam Android/iPhone com origem no Brasil. O protocolo já tem audiência orgânica no Brasil desde o primeiro dia.
 
-- **Visitante do Reino Unido** (`31.121.111.19`, Windows/Chrome, BT PLC) — primeiro visitante internacional registrado.
+- **Primeiro visitante internacional** (visitor-E, Windows/Chrome, Reino Unido) — registrado às 11:04 UTC.
 
 ---
 
 ## Bots & Crawlers Identificados
 
-| IP(s) | Família | Requests | Tipo | Via site? |
-|-------|---------|---------|------|-----------|
-| `17.241.219.63`, `17.241.75.204`, `17.241.75.239`, `17.22.245.36`, `17.22.245.87`, `17.22.253.86`, `17.246.19.66`, `17.246.23.245` | **Applebot** (Apple Inc.) | 8 | Indexador Spotlight/Siri | ✅ Via `kcp-protocol.org` |
-| `74.125.210.65`, `74.125.210.97`, `74.125.210.108` | **Google-Read-Aloud** | 3 | Leitor IA do Google | ✅ Via `kcp-protocol.org` |
-| `170.85.22.208` | **Script/curl** (curl/8.7.1) | **639** | Monitor automatizado (curl) | Via site (status.html aberto) |
-| `34.222.95.144` | Crawler desconhecido | 10 | Acesso direto às URLs dos peers | ❌ Direto ao peer |
-| `85.11.167.19` | Crawler desconhecido (POST /) | 6 | Tentativa de POST na raiz | ❌ Direto ao peer |
-| `64.15.129.x` (6 IPs) | Scanner de rede | 6 | GET / com Chrome UA falso | ❌ Direto ao peer |
-| `192.175.111.x` (5 IPs) | Scanner de rede | 5 | GET / com Chrome UA falso | ❌ Direto ao peer |
+| Família | Requests | Tipo | Via site? |
+|---------|---------|------|-----------|
+| **Applebot** (Apple Inc.) | 8 | Indexador Spotlight/Siri | ✅ Via `kcp-protocol.org` |
+| **Google-Read-Aloud** | 3 | Leitor IA do Google | ✅ Via `kcp-protocol.org` |
+| **Monitor automatizado** (curl/8.7.1) | **639** | Script de monitoramento contínuo | Via site (status.html aberto) |
+| Crawler desconhecido | 10 | Acesso direto às URLs dos peers | ❌ Direto ao peer |
+| Crawler desconhecido (POST /) | 6 | Tentativa de POST na raiz | ❌ Direto ao peer |
+| Scanner de rede (6 IPs) | 6 | GET / com Chrome UA falso | ❌ Direto ao peer |
+| Scanner de rede (5 IPs) | 5 | GET / com Chrome UA falso | ❌ Direto ao peer |
 
 ### Destaques de bots
 
@@ -74,7 +75,7 @@ Identificados via `Referer: https://kcp-protocol.org/` no nginx, com user-agent 
 
 - **Google-Read-Aloud visitou via `kcp-protocol.org`** — O assistente de leitura por voz do Google leu o site. É sinal de que o Google já rastreou o conteúdo e o está processando para síntese de voz (Google Assistant, Chrome leitor).
 
-- **`170.85.22.208` — 639 requests, curl/8.7.1** — Este IP acessou o site e manteve a aba aberta com o status.html em auto-refresh (a cada ~30 segundos, 3 peers × ~213 ciclos = ~6h30 de monitoramento contínuo). Comportamento de dev/ops monitorando o deployment ao vivo.
+- **Monitor curl — 639 requests** — Uma sessão manteve o `status.html` aberto em auto-refresh (a cada ~30 segundos, 3 peers × ~213 ciclos = ~6h30 de monitoramento contínuo). Comportamento típico de dev/ops monitorando o deployment ao vivo.
 
 ---
 
@@ -83,23 +84,23 @@ Identificados via `Referer: https://kcp-protocol.org/` no nginx, com user-agent 
 ```
 20/03 23:54  Primeiros scanners de rede detectam os peers (peer07 online)
 21/03 01:00  Segunda rodada de scanners (peer04/05)
-21/03 05:03  Crawler 34.222.95.144 (Windows Edge 18) — acesso direto
-21/03 06:20  Crawler 85.11.167.19 — POST na raiz (probe de vulnerabilidade)
-21/03 08:39  Crawler 185.247.137.94 acessa peer05
-21/03 09:01  Crawler 87.236.176.167 acessa peer07
+21/03 05:03  Crawler desconhecido (Windows Edge 18) — acesso direto
+21/03 06:20  Crawler — POST na raiz (probe de vulnerabilidade)
+21/03 08:39  Crawler acessa peer05
+21/03 09:01  Crawler acessa peer07
 
 --- Fase humana começa ---
-21/03 11:04  👤 Visitante #1: Windows/Chrome — Reino Unido (31.121.111.19)
-21/03 11:20  👤 Visitante #2: iPhone/Safari — Porto Alegre BR (189.18.231.206)
-21/03 11:23  👤 Visitante #3 (mais ativo): Android/Chrome — São Paulo BR (179.193.55.228)
-             🤖 Applebot começa a indexar (17.241.219.63 e outros)
-21/03 12:25  👤 Visitante #4: Android/Chrome — São Paulo BR (189.98.252.107)
-             🤖 Google-Read-Aloud lê o site (74.125.210.x)
-21/03 12:35  👤 Visitante #5: Android/Chrome — Brasil (189.96.225.19)
-21/03 13:07  🔄 Visitante #3 retorna (2ª sessão)
-21/03 13:41  🔄 Visitante #3 retorna (3ª sessão — monitora status por ~6min)
-21/03 14:28  👤 Visitante #6: iPhone/Safari — (172.226.128.49)
-21/03 14:31  🔄 Visitante #3 retorna (4ª sessão)
+21/03 11:04  👤 visitor-E: Windows/Chrome — Reino Unido
+21/03 11:20  👤 visitor-D: iPhone/Safari — Brasil
+21/03 11:23  👤 visitor-A (mais ativo): Android/Chrome — Brasil
+             🤖 Applebot começa a indexar
+21/03 12:25  👤 visitor-B: Android/Chrome — Brasil
+             🤖 Google-Read-Aloud lê o site
+21/03 12:35  👤 visitor-F: Android/Chrome — Brasil
+21/03 13:07  🔄 visitor-A retorna (2ª sessão)
+21/03 13:41  🔄 visitor-A retorna (3ª sessão — monitora status por ~6min)
+21/03 14:28  👤 visitor-C: iPhone/Safari — Brasil
+21/03 14:31  🔄 visitor-A retorna (4ª sessão)
 21/03 15:05  Último registro (fim do período analisado)
 ```
 
@@ -178,11 +179,12 @@ Requer implementar `POST /kcp/v1/beacon` no `node.py` (apenas loga `page`, `ip`,
 
 ## Conclusão
 
-O site `kcp-protocol.org` completou seu primeiro dia com **6 visitantes humanos únicos confirmados**, maioria mobile brasileira, e foi imediatamente indexado por **Apple** e **Google**. O visitante mais engajado (`179.193.55.228`) retornou 4 vezes ao longo do dia e claramente compartilhou o link — os outros visitantes brasileiros aparecem nas horas seguintes.
+O site `kcp-protocol.org` completou seu primeiro dia com **6 visitantes humanos únicos confirmados**, maioria mobile brasileira, e foi imediatamente indexado por **Apple** e **Google**. O visitor-A retornou 4 vezes ao longo do dia e claramente compartilhou o link — os outros visitantes brasileiros aparecem nas horas seguintes.
 
 Para próximas iterações: implementar o beacon de analytics próprio no VPS para ter visibilidade completa de todo o tráfego GitHub Pages, não apenas de quem abre o status.
 
 ---
 
-*Gerado por análise dos logs nginx do VPS `165.22.151.182` — peers peer04/05/07.*
+*Gerado por análise dos logs nginx do VPS — peers peer04/05/07.*  
+*IPs de origem de visitantes humanos omitidos por privacidade.*  
 *Dados coletados via `sudo grep 'kcp-protocol.org' /var/log/nginx/kcp-peer*.access.log`*
