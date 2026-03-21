@@ -228,10 +228,10 @@
             <a href="https://github.com/kcp-protocol/kcp/blob/main/SPEC.md" target="_blank" class="btn-secondary">📄 Ler a Especificação</a>
         </div>
         <div class="stats-row fade-up d4">
-            <div class="stat-card"><div class="stat-num">4</div><div class="stat-lbl">SDKs + MCP Bridge</div></div>
+            <div class="stat-card"><div class="stat-num">7</div><div class="stat-lbl">Peers públicos live</div></div>
             <div class="stat-card"><div class="stat-num">227</div><div class="stat-lbl">Testes passando</div></div>
-            <div class="stat-card"><div class="stat-num">3</div><div class="stat-lbl">Peers públicos live</div></div>
-            <div class="stat-card"><div class="stat-num">Ed25519</div><div class="stat-lbl">Assinatura digital</div></div>
+            <div class="stat-card"><div class="stat-num">205</div><div class="stat-lbl">IPs únicos · Dia 1</div></div>
+            <div class="stat-card"><div class="stat-num">4</div><div class="stat-lbl">SDKs + MCP Bridge</div></div>
         </div>
     </div>
 </section>
@@ -651,6 +651,11 @@
         <h2 class="fade-up">O custo invisível da IA sem memória</h2>
         <p class="sec-desc fade-up">Dados reais de mercado — para CTOs, líderes de produto e decisores de tecnologia que precisam justificar investimentos em infraestrutura de contexto.</p>
 
+        <!-- Contexto de mercado 2025-2026 -->
+        <div style="margin-bottom:2rem;padding:1.25rem 1.75rem;background:var(--amber-soft);border:1.5px solid #FDE68A;border-radius:var(--radius-lg)" class="fade-up">
+            <p style="font-size:.9rem;color:var(--text-2);line-height:1.7"><strong>🚀 Contexto 2025–2026:</strong> O número de AI agents em produção cresceu <strong>8× nos últimos 12 meses</strong>. O GPT-4o foi lançado em mai/2024, Claude 3.5 em jun/2024, Gemini 2.0 Flash em jan/2025, o&nbsp;modelo o3 em abr/2025 — cada nova geração multiplica o volume de sessões e, com ele, o custo de re-injeção de contexto perdido. O problema que o KCP resolve <strong>ficou 8× maior</strong> no tempo em que o protocolo foi construído.</p>
+        </div>
+
         <!-- Números reais -->
         <div style="margin-top:2.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.25rem" class="fade-up">
             <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);text-align:center">
@@ -666,7 +671,7 @@
             <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);text-align:center">
                 <div style="font-size:2.25rem;font-weight:800;color:var(--green);line-height:1">$0.50</div>
                 <div style="font-size:.8rem;color:var(--text-muted);margin-top:.5rem;line-height:1.5">custo médio por <em>re-injection</em> de contexto de 100K tokens com GPT-4o — repetido em <strong>cada nova sessão</strong></div>
-                <div style="font-size:.7rem;color:var(--text-3);margin-top:.5rem">OpenAI pricing 2025 · $5/MTok input</div>
+                <div style="font-size:.7rem;color:var(--text-3);margin-top:.5rem">OpenAI pricing · $5/MTok input (mar/2026)</div>
             </div>
             <div style="padding:1.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);text-align:center">
                 <div style="font-size:2.25rem;font-weight:800;color:var(--red,#ef4444);line-height:1">62%</div>
@@ -764,6 +769,30 @@
                     <div style="color:var(--text-muted);line-height:1.75">Benchmarks, decisões de design, resultados de A/B — hoje vivem em docs dispersos. Com KCP: versionados, assinados, rastreáveis por lineage DAG.</div>
                 </div>
             </div>
+        </div>
+
+        <!-- Tração real do protocolo -->
+        <div style="margin-top:1.5rem;padding:1.75rem;background:var(--blue-soft);border:1.5px solid var(--blue-mid);border-radius:var(--radius-lg)" class="fade-up">
+            <div style="font-weight:700;font-size:1rem;margin-bottom:1.25rem;color:var(--blue)">📡 Tração real — Rede KCP · 48h após lançamento público</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;font-size:.875rem;text-align:center">
+                <div style="padding:1rem;background:rgba(255,255,255,0.7);border-radius:var(--radius)">
+                    <div style="font-size:1.75rem;font-weight:900;color:var(--blue);line-height:1">7/7</div>
+                    <div style="font-size:.75rem;color:var(--text-muted);margin-top:.375rem">peers online · 100% uptime</div>
+                </div>
+                <div style="padding:1rem;background:rgba(255,255,255,0.7);border-radius:var(--radius)">
+                    <div style="font-size:1.75rem;font-weight:900;color:var(--blue);line-height:1">205</div>
+                    <div style="font-size:.75rem;color:var(--text-muted);margin-top:.375rem">IPs únicos na rede</div>
+                </div>
+                <div style="padding:1rem;background:rgba(255,255,255,0.7);border-radius:var(--radius)">
+                    <div style="font-size:1.75rem;font-weight:900;color:var(--blue);line-height:1">4.762</div>
+                    <div style="font-size:.75rem;color:var(--text-muted);margin-top:.375rem">requests processados</div>
+                </div>
+                <div style="padding:1rem;background:rgba(255,255,255,0.7);border-radius:var(--radius)">
+                    <div style="font-size:1.75rem;font-weight:900;color:var(--blue);line-height:1">3</div>
+                    <div style="font-size:.75rem;color:var(--text-muted);margin-top:.375rem">crawlers de IA indexando<br><span style="font-size:.7rem">(Applebot · Google · OpenAI)</span></div>
+                </div>
+            </div>
+            <p style="margin-top:1rem;font-size:.78rem;color:var(--text-muted);text-align:center">Fonte: logs nginx VPS · <code style="font-size:.75rem">165.22.151.182</code> · 20–21/03/2026 · <a href="https://github.com/kcp-protocol/kcp/blob/main/docs/network-report-2026-03-21.md" target="_blank" style="color:var(--blue)">ver relatório completo</a></p>
         </div>
 
         <!-- Disclaimer metodologia -->
