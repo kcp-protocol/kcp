@@ -1,0 +1,26 @@
+[Unit]
+Description=KCP Blackhole Daemon — auto-ban via kernel route
+Documentation=https://github.com/kcp-protocol/kcp/blob/main/infra/kcp-blackhole.py
+After=nginx.service kcp-peer04.service kcp-peer05.service kcp-peer07.service
+Requires=nginx.service
+
+[Service]
+Type=simple
+User=root
+# Faz o tail de todos os access logs dos peers e pipe para o daemon
+ExecStart=/bin/bash -c \
+    'tail -q -F \
+        /var/log/nginx/kcp-peer04.access.log \
+        /var/log/nginx/kcp-peer05.access.log \
+        /var/log/nginx/kcp-peer07.access.log \
+    | /usr/bin/python3 /dados/kcp/infra/kcp-blackhole.py'
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Logs com prioridade específica
+SyslogIdentifier=kcp-blackhole
+
+[Install]
+WantedBy=multi-user.target

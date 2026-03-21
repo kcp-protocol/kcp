@@ -1,0 +1,25 @@
+[Unit]
+Description=KCP Peer Node — peer04.kcp-protocol.org
+After=network.target
+PartOf=kcp-peers.target
+
+[Service]
+User=kcp
+WorkingDirectory=/dados/kcp
+Environment=KCP_PEER_ID=peer04
+ExecStart=/dados/kcp/sdk/python/.venv/bin/python -c \
+    "import sys; sys.path.insert(0,'sdk/python'); \
+     from kcp.node import KCPNode; \
+     n=KCPNode( \
+       user_id='peer04@kcp-protocol.org', \
+       tenant_id='kcp-protocol', \
+       db_path='/dados/kcp/data/peer04/kcp.db' \
+     ); \
+     n.serve(host='127.0.0.1', port=8804)"
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
