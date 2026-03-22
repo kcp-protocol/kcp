@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 KCP Artifact Seeder
-Popula todos os 7 peers com 1000 artefatos cada (mix de formatos e visibilidades).
+Popula todos os 8 peers com 1000 artefatos cada (mix de formatos e visibilidades).
 Roda diretamente no VPS via localhost para máxima velocidade.
 
 Uso:
@@ -36,6 +36,7 @@ PEERS = {
     "peer05": 8805,
     "peer06": 8806,
     "peer07": 8807,
+    "peer08": 8808,
 }
 
 ARTIFACTS_PER_PEER = 1000

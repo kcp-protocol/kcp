@@ -1,71 +1,80 @@
 {
-  "version": "1",
-  "updated_at": "2026-03-21T14:45:00Z",
-  "protocol": "KCP/1",
-  "registry_url": "https://kcp-protocol.org/peers.json",
-  "peers": [
-    {
-      "node_id": "c5c9de87-bc07-4235-a333-3c0d5c632d15",
-      "url": "https://peer01.kcp-protocol.org",
-      "name": "KCP Public Peer 01",
-      "region": "South America",
-      "health_url": "https://peer01.kcp-protocol.org/kcp/v1/health",
-      "peers_url": "https://peer01.kcp-protocol.org/kcp/v1/peers",
-      "status": "live"
-    },
-    {
-      "node_id": "8fb635b9-2426-4fe6-82d7-960511664d0e",
-      "url": "https://peer02.kcp-protocol.org",
-      "name": "KCP Public Peer 02",
-      "region": "South America",
-      "health_url": "https://peer02.kcp-protocol.org/kcp/v1/health",
-      "peers_url": "https://peer02.kcp-protocol.org/kcp/v1/peers",
-      "status": "live"
-    },
-    {
-      "node_id": "ed536e8d-80db-4536-bb13-c553304afde4",
-      "url": "https://peer03.kcp-protocol.org",
-      "name": "KCP Public Peer 03",
-      "region": "South America",
-      "health_url": "https://peer03.kcp-protocol.org/kcp/v1/health",
-      "peers_url": "https://peer03.kcp-protocol.org/kcp/v1/peers",
-      "status": "live"
-    },
-    {
-      "node_id": "133aec3e-5bc0-41b7-8b00-3d4a4ef28c63",
-      "url": "https://peer04.kcp-protocol.org",
-      "name": "KCP Public Peer 04",
-      "region": "South America",
-      "health_url": "https://peer04.kcp-protocol.org/kcp/v1/health",
-      "peers_url": "https://peer04.kcp-protocol.org/kcp/v1/peers",
-      "status": "live"
-    },
-    {
-      "node_id": "ea634ee9-fc64-420c-8e69-7e9947bf22f9",
-      "url": "https://peer05.kcp-protocol.org",
-      "name": "KCP Public Peer 05",
-      "region": "South America",
-      "health_url": "https://peer05.kcp-protocol.org/kcp/v1/health",
-      "peers_url": "https://peer05.kcp-protocol.org/kcp/v1/peers",
-      "status": "live"
-    },
-    {
-      "node_id": "8275f9c7-047f-4965-bfee-11827f436798",
-      "url": "https://peer06.kcp-protocol.org",
-      "name": "KCP Public Peer 06",
-      "region": "South America",
-      "health_url": "https://peer06.kcp-protocol.org/kcp/v1/health",
-      "peers_url": "https://peer06.kcp-protocol.org/kcp/v1/peers",
-      "status": "live"
-    },
-    {
-      "node_id": "9aa41716-1761-4f52-950d-24c5010959c4",
-      "url": "https://peer07.kcp-protocol.org",
-      "name": "KCP Public Peer 07",
-      "region": "South America",
-      "health_url": "https://peer07.kcp-protocol.org/kcp/v1/health",
-      "peers_url": "https://peer07.kcp-protocol.org/kcp/v1/peers",
-      "status": "live"
-    }
-  ]
+    "version": "1",
+    "updated_at": "2026-03-22T14:33:29Z",
+    "protocol": "KCP/1",
+    "registry_url": "https://kcp-protocol.org/peers.json",
+    "peers": [
+        {
+            "node_id": "c5c9de87-bc07-4235-a333-3c0d5c632d15",
+            "url": "https://peer01.kcp-protocol.org",
+            "name": "KCP Public Peer 01",
+            "region": "South America",
+            "health_url": "https://peer01.kcp-protocol.org/kcp/v1/health",
+            "peers_url": "https://peer01.kcp-protocol.org/kcp/v1/peers",
+            "status": "live"
+        },
+        {
+            "node_id": "8fb635b9-2426-4fe6-82d7-960511664d0e",
+            "url": "https://peer02.kcp-protocol.org",
+            "name": "KCP Public Peer 02",
+            "region": "South America",
+            "health_url": "https://peer02.kcp-protocol.org/kcp/v1/health",
+            "peers_url": "https://peer02.kcp-protocol.org/kcp/v1/peers",
+            "status": "live"
+        },
+        {
+            "node_id": "ed536e8d-80db-4536-bb13-c553304afde4",
+            "url": "https://peer03.kcp-protocol.org",
+            "name": "KCP Public Peer 03",
+            "region": "South America",
+            "health_url": "https://peer03.kcp-protocol.org/kcp/v1/health",
+            "peers_url": "https://peer03.kcp-protocol.org/kcp/v1/peers",
+            "status": "live"
+        },
+        {
+            "node_id": "133aec3e-5bc0-41b7-8b00-3d4a4ef28c63",
+            "url": "https://peer04.kcp-protocol.org",
+            "name": "KCP Public Peer 04",
+            "region": "South America",
+            "health_url": "https://peer04.kcp-protocol.org/kcp/v1/health",
+            "peers_url": "https://peer04.kcp-protocol.org/kcp/v1/peers",
+            "status": "live"
+        },
+        {
+            "node_id": "ea634ee9-fc64-420c-8e69-7e9947bf22f9",
+            "url": "https://peer05.kcp-protocol.org",
+            "name": "KCP Public Peer 05",
+            "region": "South America",
+            "health_url": "https://peer05.kcp-protocol.org/kcp/v1/health",
+            "peers_url": "https://peer05.kcp-protocol.org/kcp/v1/peers",
+            "status": "live"
+        },
+        {
+            "node_id": "8275f9c7-047f-4965-bfee-11827f436798",
+            "url": "https://peer06.kcp-protocol.org",
+            "name": "KCP Public Peer 06",
+            "region": "South America",
+            "health_url": "https://peer06.kcp-protocol.org/kcp/v1/health",
+            "peers_url": "https://peer06.kcp-protocol.org/kcp/v1/peers",
+            "status": "live"
+        },
+        {
+            "node_id": "9aa41716-1761-4f52-950d-24c5010959c4",
+            "url": "https://peer07.kcp-protocol.org",
+            "name": "KCP Public Peer 07",
+            "region": "South America",
+            "health_url": "https://peer07.kcp-protocol.org/kcp/v1/health",
+            "peers_url": "https://peer07.kcp-protocol.org/kcp/v1/peers",
+            "status": "live"
+        },
+        {
+            "node_id": "e61a23e2-a81f-49be-9858-9205c609079c",
+            "url": "https://peer08.kcp-protocol.org",
+            "name": "KCP Public Peer 08",
+            "region": "South America",
+            "health_url": "https://peer08.kcp-protocol.org/kcp/v1/health",
+            "peers_url": "https://peer08.kcp-protocol.org/kcp/v1/peers",
+            "status": "live"
+        }
+    ]
 }
