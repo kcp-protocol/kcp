@@ -107,10 +107,8 @@ KCP defines four deployment modes (RFC KCP-004):
 - [x] `peers.json` submission process (GitHub PR + automated health check CI)
 - [x] Automatic peer health monitoring (GitHub Actions — PR check + daily cron)
 - [x] RFC KCP-004 published ([rfcs/kcp-004-network-models.md](../rfcs/kcp-004-network-models.md))
-- [x] Artifact seeding — 7.052 artifacts across 7 peers (public + org + private mix)
+- [x] Artifact seeding — ~8.000 artifacts across 8 peers (public + org + private mix)
 - [x] Docker image + docker-compose.yml for community operators
-- [ ] Ansible playbook for repeatable peer setup _(deferred to v0.6)_
-- [ ] Cross-region latency benchmarks _(deferred — needs community peers first)_
 
 ### What the KCP project does NOT need to do
 
@@ -194,10 +192,9 @@ KCP defines four deployment modes (RFC KCP-004):
 
 | Feature | Impact | Effort | Priority |
 |---------|--------|--------|----------|
-| Multi-region peers (Phase 3) | 🔥 High (resilience + latency) | Medium | **P0** |
+| Multi-region peers (community) | 🔥 High (resilience + latency) | Medium | **P0** |
 | RFC KCP-004 (Network Security) | High | Low | P0 |
 | Corporate Hub | High | Medium | P1 |
-| Docker Compose | High | Low | P1 |
 | IPFS storage backend | Medium | High | P2 |
 | OAuth2 / SSO | Medium | Medium | P2 |
 | Federation | Medium | High | P3 |
