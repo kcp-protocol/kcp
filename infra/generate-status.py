@@ -128,8 +128,6 @@ def render_peer_card(p: dict, i: int) -> str:
       {meta}
       <div style="margin-top:.875rem">
         <a href="{p['url']}/kcp/v1/health" target="_blank" style="font-size:.75rem;color:var(--blue)">Health ↗</a>
-        <span style="color:var(--border);margin:0 .4rem">·</span>
-        <a href="{p['url']}/ui" target="_blank" style="font-size:.75rem;color:var(--blue)">Dashboard ↗</a>
       </div>
     </div>"""
 
