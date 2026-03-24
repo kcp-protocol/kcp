@@ -248,7 +248,10 @@ tr.highlight-warn { background: rgba(245,158,11,0.08); }
 <div class="toast" id="toast"></div>
 
 <script>
-const API_BASE = window.location.origin;
+// When accessed via portal proxy (/ip-monitor), API is at /ip-monitor/api/
+// When accessed directly (port 9100), API is at /api/
+const isProxied = window.location.pathname.startsWith('/ip-monitor');
+const API_BASE = isProxied ? '/ip-monitor' : '';
 const REFRESH_INTERVAL = 10_000; // 10 seconds
 let timerInterval;
 let data = null;
