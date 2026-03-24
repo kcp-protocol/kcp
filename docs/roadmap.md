@@ -1,7 +1,7 @@
 # KCP Roadmap
 
-**Version:** 0.4  
-**Updated:** June 2026  
+**Version:** 0.5  
+**Updated:** March 2026  
 **Author:** Thiago Silva
 
 ---
@@ -12,11 +12,13 @@ KCP becomes the standard protocol for AI-generated knowledge — from personal u
 
 ---
 
-## Current State (v0.4 — June 2026) ✅
+## Phase 1: SDK & Core Protocol ✅ COMPLETE (March 2026)
+
+**Goal:** Build the reference implementation and prove the protocol works.
 
 ### Completed (227 tests passing across all SDKs)
 
-- [x] Protocol specification (SPEC.md)
+- [x] Protocol specification (SPEC.md v0.2)
 - [x] Architecture design (3 operating modes: local, hub, federation)
 - [x] Python SDK — reference implementation (Python 3.13, **216 tests ✅**)
   - [x] Embedded node (in-process, no server needed)
@@ -36,7 +38,7 @@ KCP becomes the standard protocol for AI-generated knowledge — from personal u
   - [x] Sync worker (background daemon)
   - [x] Hybrid filesystem storage (content_store.py)
   - [x] Peer discovery API (gossip + bootstrap via peers.json)
-  - [x] **Multi-peer replication factor** (kcp_replication table, ACK-based tracking, `complete` flag)
+  - [x] Multi-peer replication factor (kcp_replication table, ACK-based tracking)
 - [x] TypeScript SDK — Node.js 25, ESM + CJS + DTS (**37 tests ✅**)
   - [x] KCPNode (publish, get, search, verify, lineage, stats)
   - [x] Ed25519 + SHA-256 via @noble/* (zero native deps)
@@ -53,40 +55,37 @@ KCP becomes the standard protocol for AI-generated knowledge — from personal u
   - [x] MCP session lineage (mcp_session_id, mcp_tool_call)
 - [x] **Total: 227 tests passing** across all SDKs + MCP bridge
 - [x] RFC KCP-001 (Core Protocol) + RFC KCP-002 (MCP Bridge) + RFC KCP-003 (Sync)
+- [x] RFC KCP-004 (Network Deployment Models)
 - [x] Whitepaper, executive presentation, use cases
-- [x] Landing page (kcp-protocol.org) — ROI section, live peer widget
+- [x] Landing page (kcp-protocol.org)
 
 ---
 
-## Phase 2: Production Infrastructure ✅ COMPLETE (June 2026)
+## Phase 2: Production Infrastructure ✅ COMPLETE (March 2026)
 
 **Goal:** Deploy multiple live nodes, establish peer network, production hardening.
 
 ### Completed
 
 - [x] Production server deployment (Linux, multi-instance)
-- [x] **3 live peers** — peer04, peer05, peer07 (same host, nginx routing per hostname)
-- [x] SSL/TLS — Let's Encrypt wildcard cert (peer04/05/07.kcp-protocol.org)
+- [x] **8 live peers** — peer01-08 (nginx routing per hostname)
+- [x] SSL/TLS — Let's Encrypt certs for all peers
 - [x] nginx per-hostname routing with rate limiting (read / sync / write zones)
 - [x] Kernel blackhole auto-ban daemon (IP abuse → automatic network-level block)
 - [x] X-KCP-Client header enforcement on public endpoints
-- [x] Peer discovery API (GET /kcp/v1/peers/discover, gossip, bootstrap via peers.json)
+- [x] Peer discovery API (GET /kcp/v1/peers, gossip, bootstrap via peers.json)
 - [x] docs/peers.json — public peer registry served by GitHub Pages
-- [x] Multi-peer replication factor (kcp_replication table + /replication route + tests)
+- [x] Multi-peer replication factor (kcp_replication table + /replication route)
 - [x] Web dashboard UI (SPA — artifacts, search, publish, peers, sync, replication tabs)
 - [x] Traffic reporter daemon (peer health + metrics → HTML report)
 - [x] Process manager services for all peers
+- [x] Admin portal with Basic Auth (portal.kcp-protocol.org:8099)
 
 ---
 
-## Phase 3: Community Network & One-Click Deploy (v0.5) ✅ COMPLETE (March 2026)
+## Phase 3: Community Network ✅ COMPLETE (March 2026)
 
-**Goal:** Enable the community to run its own peers. The KCP project runs reference
-nodes during the proof-of-concept phase, but the long-term model is a **voluntary
-mesh where each operator funds their own node** — exactly like how the web works.
-
-See [RFC KCP-004 — Network Deployment Models](../rfcs/kcp-004-network-models.md)
-for the full network sustainability strategy.
+**Goal:** Enable the community to run its own peers with one-click deploy guides.
 
 ### Network Models
 
@@ -99,107 +98,63 @@ KCP defines four deployment modes (RFC KCP-004):
 | **Community Peer** | Volunteer operator | The operator | Yes |
 | **Federated Mesh** | Multiple orgs / peers | Each participant | Optional |
 
-### Phase 3 Tasks — Lower the barrier for community operators
+### Completed
 
 - [x] One-click deploy guide — Docker Compose ([deploy-docker.md](deploy-docker.md))
 - [x] DigitalOcean step-by-step guide ([deploy-digitalocean.md](deploy-digitalocean.md))
-- [x] Operator documentation (hardware requirements, config reference, ToS)
+- [x] Operator documentation (hardware requirements, config reference)
 - [x] `peers.json` submission process (GitHub PR + automated health check CI)
 - [x] Automatic peer health monitoring (GitHub Actions — PR check + daily cron)
-- [x] RFC KCP-004 published ([rfcs/kcp-004-network-models.md](../rfcs/kcp-004-network-models.md))
 - [x] Artifact seeding — ~8.000 artifacts across 8 peers (public + org + private mix)
 - [x] Docker image + docker-compose.yml for community operators
+- [x] Static status page (cron VPS → GitHub Pages)
 
-### What the KCP project does NOT need to do
+### What the KCP project does NOT do
 
 - Pay for community-operated nodes — operators fund their own infrastructure
-- Run peer01/02/03/06 ourselves — they should be operated by community members
 - Build a hosting platform — the protocol is MIT-licensed, others can build that
 
 ---
 
-## Phase 4: IPFS & Decentralized Storage (v0.6)
+## Phase 4: Ecosystem & Adoption 🔜 TARGET: May 2026
 
-**Goal:** Content-addressed storage via IPFS for permanent, censorship-resistant artifact persistence.
+**Goal:** Make KCP easy to adopt — PyPI/npm packages, GitHub Action, OpenAPI spec, live network status.
 
 ### Tasks
 
-- [ ] IPFS content backend (`IPFSBackend`) — CID-based addressing
-- [ ] Pin artifact content to IPFS on publish
-- [ ] kcp:// → ipfs:// URI mapping
-- [ ] IPFS gateway fallback for public artifacts
-- [ ] RFC KCP-005 (IPFS Storage Layer)
+- [ ] **PyPI package** (`pip install kcp`) — automated publish on release
+- [ ] **npm package** (`npm install @kcp/client`) — automated publish on release
+- [ ] **OpenAPI spec** (docs/openapi.yaml) — full HTTP API documentation
+- [ ] **GitHub Action** — publish artifacts from CI/CD workflows
+- [ ] **Live network status API** — real-time peer health via CORS-enabled endpoint
+- [ ] **VS Code extension** — KCP explorer sidebar
+- [ ] **Helm chart** — Kubernetes deployment
 
----
+### Deferred to v1.0 (Long-term Vision)
 
-## Phase 5: Corporate Hub (v0.6) 🔜
-
-**Goal:** Centralized deployment for organizations — single-click enterprise setup.
-
-**Tasks:**
-- [ ] Hub server (FastAPI + PostgreSQL)
-- [ ] Docker Compose (one-command local setup)
-- [ ] Dockerfile for production
-- [ ] OAuth2 / Google Workspace SSO integration
-- [ ] Multi-tenant isolation
-- [ ] ACL (team-level, user-level permissions)
-- [ ] Audit log (who did what, when)
-- [ ] Admin dashboard (Web UI)
-- [ ] Terraform / CloudFormation for AWS deployment
-- [ ] Deploy guide (AWS, GCP, self-hosted)
-
----
-
-## Phase 6: Federation (v0.7)
-
-**Goal:** Hub-to-hub communication for cross-organization sharing.
-
-**Tasks:**
-- [ ] Hub-to-hub sync protocol
-- [ ] mTLS authentication between hubs
-- [ ] ACL filtering (control what gets exported/imported)
-- [ ] Cross-org lineage tracking
-- [ ] Federation registry (discover other hubs)
-
----
-
-## Phase 7: Advanced Features (v0.8)
-
-- [ ] Semantic search (vector embeddings + cosine similarity)
-- [ ] Auto-tagging (LLM-based classification)
-- [ ] Knowledge graph visualization
-- [ ] Artifact versioning (update in place with history)
-- [ ] Notifications (new artifacts matching interests)
-- [ ] RFC KCP-004 (Network Security Layer)
-
----
-
-## Phase 8: Ecosystem (v1.0)
-
-- [ ] PyPI package (`pip install kcp`)
-- [ ] npm package (`npm install @kcp/client`)
-- [ ] Go module (`go get github.com/kcp-protocol/kcp`)
-- [ ] VS Code extension
-- [ ] GitHub Action (publish artifacts from CI/CD)
-- [ ] Helm chart for Kubernetes deployment
-- [ ] OpenAPI spec for hub API
-- [ ] Conformance test suite
-- [ ] Additional SDKs: Rust, Java, Kotlin/Mobile
+- **IPFS backend** — content-addressed storage (CID-based)
+- **Federation** — hub-to-hub sync with mTLS
+- **Semantic search** — vector embeddings + cosine similarity
+- **Corporate Hub** — SSO, multi-tenant, audit log, PostgreSQL
+- **Auto-tagging** — LLM-based classification
+- **Knowledge graph visualization**
+- **Artifact versioning** — update in place with history
 
 ---
 
 ## Priority Matrix
 
-| Feature | Impact | Effort | Priority |
-|---------|--------|--------|----------|
-| Multi-region peers (community) | 🔥 High (resilience + latency) | Medium | **P0** |
-| RFC KCP-004 (Network Security) | High | Low | P0 |
-| Corporate Hub | High | Medium | P1 |
-| IPFS storage backend | Medium | High | P2 |
-| OAuth2 / SSO | Medium | Medium | P2 |
-| Federation | Medium | High | P3 |
-| Semantic search | Low | High | P3 |
-| PyPI / npm packages | Medium | Low | P2 |
+| Feature | Impact | Effort | Priority | Target |
+|---------|--------|--------|----------|--------|
+| PyPI / npm packages | High | Low | **P0** | Phase 4 |
+| OpenAPI spec | High | Low | **P0** | Phase 4 |
+| GitHub Action | High | Medium | **P1** | Phase 4 |
+| Live network status | Medium | Low | **P1** | Phase 4 |
+| VS Code extension | Medium | Medium | **P2** | Phase 4 |
+| Corporate Hub | High | High | **P2** | v1.0 |
+| Semantic search | Low | High | **P3** | v1.0 |
+| IPFS backend | Medium | High | **P3** | v1.0 |
+| Federation | Medium | High | **P3** | v1.0 |
 
 ---
 

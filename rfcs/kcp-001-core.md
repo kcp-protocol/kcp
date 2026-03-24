@@ -254,7 +254,7 @@ Table of Contents
 5.1.  PUBLISH
 
    Request:
-      POST /kcp/v1/reports
+      POST /kcp/v1/artifacts
       Content-Type: application/json
 
       {knowledge artifact payload as defined in Section 4}
@@ -271,14 +271,14 @@ Table of Contents
 
    Response:
       201 Created
-      Location: /kcp/v1/reports/{id}
+      Location: /kcp/v1/artifacts/{id}
 
       {"id": "...", "content_hash": "...", "indexed_at": "..."}
 
 5.2.  DISCOVER
 
    Request:
-      GET /kcp/v1/reports?q={query}&tenant_id={tenant}&team={team}
+      GET /kcp/v1/artifacts?q={query}&tenant_id={tenant}&team={team}
           &tags={tag1,tag2}&from={date}&to={date}&limit={n}&offset={n}
 
    All parameters are OPTIONAL. If no parameters are provided, the
@@ -301,14 +301,14 @@ Table of Contents
 5.3.  RETRIEVE
 
    Request:
-      GET /kcp/v1/reports/{id}
+      GET /kcp/v1/artifacts/{id}
 
    Response:
       200 OK - Artifact metadata (JSON)
       404 Not Found - Artifact does not exist or is not accessible
 
    Content retrieval:
-      GET /kcp/v1/reports/{id}/content
+      GET /kcp/v1/artifacts/{id}/content
 
    Response:
       200 OK - Raw content with appropriate Content-Type header
@@ -328,7 +328,7 @@ Table of Contents
 5.5.  REVOKE
 
    Request:
-      DELETE /kcp/v1/reports/{id}
+      DELETE /kcp/v1/artifacts/{id}
 
    Nodes MUST implement soft deletion. The artifact metadata MUST be
    retained with a "deleted_at" timestamp. Content MAY be purged after
@@ -408,7 +408,7 @@ Table of Contents
 
    Nodes SHOULD provide a convenience endpoint for lineage traversal:
 
-      GET /kcp/v1/reports/{id}/lineage?depth={n}
+      GET /kcp/v1/artifacts/{id}/lineage?depth={n}
 
    Response: DAG of artifacts up to {n} levels deep.
 

@@ -49,11 +49,11 @@ KCP defines a protocol for **knowledge artifacts** — signed, content-addressed
 
 | SDK | Language | Tests | Status |
 |-----|----------|-------|--------|
-| Python | Python 3.13 · pytest | ✅ **96 tests** | Production-ready |
+| Python | Python 3.13 · pytest | ✅ **216 tests** | Production-ready |
 | TypeScript | Node.js 25 · Jest | ✅ **37 tests** | Production-ready |
 | Go | Go 1.22 · go test | ✅ **64 tests** | Production-ready |
 | **MCP Bridge** | Python · pytest-asyncio | ✅ **23 tests** | Production-ready |
-| **Total** | | ✅ **220 tests** | All passing |
+| **Total** | | ✅ **227 tests** | All passing |
 
 ## Public Peer Network
 
@@ -61,20 +61,24 @@ KCP peers are open nodes anyone can sync with. No account needed.
 
 | Peer | URL | Status | Region |
 |------|-----|--------|--------|
+| peer01 | `https://peer01.kcp-protocol.org` | ✅ Live | South America |
+| peer02 | `https://peer02.kcp-protocol.org` | ✅ Live | South America |
+| peer03 | `https://peer03.kcp-protocol.org` | ✅ Live | South America |
 | peer04 | `https://peer04.kcp-protocol.org` | ✅ Live | South America |
 | peer05 | `https://peer05.kcp-protocol.org` | ✅ Live | South America |
+| peer06 | `https://peer06.kcp-protocol.org` | ✅ Live | South America |
 | peer07 | `https://peer07.kcp-protocol.org` | ✅ Live | South America |
-| peer01 | `https://peer01.kcp-protocol.org` | ⏳ Coming soon | Europe |
-| peer02 | `https://peer02.kcp-protocol.org` | ⏳ Coming soon | North America |
-| peer03 | `https://peer03.kcp-protocol.org` | ⏳ Coming soon | Asia Pacific |
+| peer08 | `https://peer08.kcp-protocol.org` | ✅ Live | South America |
+
+> **~8.000 artifacts** seeded across the network. See live status at [kcp-protocol.org/status.html](https://kcp-protocol.org/status.html)
 
 ```bash
 # Check peer health
-curl https://peer07.kcp-protocol.org/kcp/v1/health
+curl https://peer01.kcp-protocol.org/kcp/v1/health
 
 # Add peer and sync
-kcp peer add https://peer07.kcp-protocol.org
-kcp sync https://peer07.kcp-protocol.org --pull
+kcp peer add https://peer01.kcp-protocol.org
+kcp sync https://peer01.kcp-protocol.org --pull
 ```
 
 > **Security:** Public peers require the `X-KCP-Client` header on sync operations.
@@ -85,8 +89,9 @@ kcp sync https://peer07.kcp-protocol.org --pull
 ### Install
 
 ```bash
-pip install kcp              # Core
-pip install kcp[server]      # + HTTP server for P2P
+# Install from source (PyPI package coming soon)
+git clone https://github.com/kcp-protocol/kcp
+cd kcp && make setup-python
 ```
 
 ### Try it now (interactive demos)
@@ -182,7 +187,7 @@ All modes use the **same API**. The backend is transparent to the user.
 | [Whitepaper](docs/whitepaper.md) | Academic paper |
 | [Comparison](docs/comparison.md) | vs Semantic Web, MCP, etc. |
 | [Use Cases](docs/use-cases.md) | 10 real-world use cases |
-| [Roadmap](docs/roadmap.md) | 6-phase development plan |
+| [Roadmap](docs/roadmap.md) | 4-phase development plan |
 | [Presentation](docs/presentation.html) | Executive presentation (PT-BR) |
 | [Python SDK](sdk/python/README.md) | Python SDK documentation |
 | [Go SDK](sdk/go/README.md) | Go SDK documentation |
@@ -227,5 +232,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions welcome — code, docs
 ---
 
 **Author:** [Thiago Silva](https://github.com/tgosoul2019)  
-**Status:** Alpha — protocol and SDK under active development  
+**Status:** Beta — protocol stable, ecosystem expanding  
 **Feedback:** [Open an issue](https://github.com/kcp-protocol/kcp/issues)

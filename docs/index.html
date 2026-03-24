@@ -228,7 +228,7 @@
             <a href="https://github.com/kcp-protocol/kcp/blob/main/SPEC.md" target="_blank" class="btn-secondary">📄 Ler a Especificação</a>
         </div>
         <div class="stats-row fade-up d4">
-            <div class="stat-card"><div class="stat-num">7</div><div class="stat-lbl">Peers públicos live</div></div>
+            <div class="stat-card"><div class="stat-num">8</div><div class="stat-lbl">Peers públicos live</div></div>
             <div class="stat-card"><div class="stat-num">227</div><div class="stat-lbl">Testes passando</div></div>
             <div class="stat-card"><div class="stat-num">205</div><div class="stat-lbl">IPs únicos · Dia 1</div></div>
             <div class="stat-card"><div class="stat-num">4</div><div class="stat-lbl">SDKs + MCP Bridge</div></div>
@@ -859,7 +859,7 @@
 <section id="roadmap">
     <div class="container">
         <div class="sec-eyebrow fade-up">ROADMAP</div>
-        <h2 class="fade-up">Implementação em 3 fases</h2>
+        <h2 class="fade-up">Implementação em 4 fases</h2>
         <div class="roadmap-grid">
             <div class="roadmap-card fade-up d1" style="border-color:var(--green-mid);background:var(--green-soft)">
                 <h3 style="color:var(--green)">✅ Fase 1 — MVP</h3>
@@ -882,7 +882,7 @@
                 <ul>
                     <li>✅ Lineage tracking + multi-tenant ACL</li>
                     <li>✅ MCP Bridge — RFC KCP-002</li>
-                    <li>✅ Peers públicos live (peer04/05/07)</li>
+                    <li>✅ 8 peers públicos com SSL (peer01–08)</li>
                     <li>✅ HTTP server + sync API</li>
                     <li>✅ AES-256-GCM + Ed25519</li>
                     <li>✅ FTS5 full-content + stemming + BM25</li>
@@ -914,6 +914,22 @@
                     <li>✅ Status page estático (cron VPS → GitHub Pages)</li>
                 </ul>
             </div>
+            <div class="roadmap-card fade-up d4">
+                <h3>🔜 Fase 4 — Ecossistema & Adoção</h3>
+                <p style="font-size:.875rem;color:var(--text-muted);margin-bottom:1rem"><strong>Meta: maio 2026</strong></p>
+                <ul>
+                    <li>☐ PyPI package (pip install kcp)</li>
+                    <li>☐ npm package (@kcp/client)</li>
+                    <li>☐ OpenAPI spec (docs/openapi.yaml)</li>
+                    <li>☐ GitHub Action — publicar artifacts de CI/CD</li>
+                    <li>☐ Status da rede ao vivo via API</li>
+                    <li>☐ VS Code extension</li>
+                    <li>☐ Helm chart (Kubernetes)</li>
+                </ul>
+            </div>
+        </div>
+        <div class="roadmap-note fade-up" style="margin-top:2rem;padding:1.25rem;background:var(--bg-secondary);border-left:3px solid var(--amber);border-radius:var(--radius)">
+            <strong>v1.0 — Visão de Longo Prazo:</strong> IPFS backend, Federation (hub-to-hub), Semantic search, Corporate Hub (SSO + audit log), Auto-tagging LLM, Knowledge graph visualization
         </div>
         <div class="disclaimer fade-up">
             <strong>ℹ️ Nota:</strong> KCP (Knowledge Context Protocol) opera na camada semântica acima do HTTP. Não deve ser confundido com o protocolo ARQ/UDP de mesmo acrônimo (<a href="https://github.com/skywind3000/kcp" target="_blank" style="color:var(--amber)">skywind3000/kcp</a>), que otimiza latência de rede em jogos — são projetos completamente independentes.

@@ -2,14 +2,14 @@
 title: KCP Protocol Specification
 description: Full specification of the Knowledge Context Protocol (KCP) — Layer 8 for persistent governance, discovery, and lineage tracking of AI-generated knowledge.
 tags: [kcp, protocol, specification, layer8, knowledge-governance, lineage, ed25519, ai-protocol, open-standard]
-version: "0.1"
-status: experimental-draft
-updated: "2026-03-20"
+version: "0.2"
+status: draft
+updated: "2026-03-22"
 ---
 
-# KCP Protocol Specification v0.1
+# KCP Protocol Specification v0.2
 
-**Status:** Experimental Draft  
+**Status:** Draft  
 **Date:** March 2026  
 **Author:** Thiago Silva (tgosoul@gmail.com)
 
@@ -67,11 +67,11 @@ KCP addresses these gaps by defining:
 
 | Operation | Method | Endpoint | Description |
 |-----------|--------|----------|-------------|
-| Publish | POST | `/kcp/v1/reports` | Submit a knowledge artifact |
-| Search | GET | `/kcp/v1/reports?q=...` | Search by keywords/tags |
-| Retrieve | GET | `/kcp/v1/reports/{id}` | Get artifact metadata |
-| Download | GET | `/kcp/v1/reports/{id}/content` | Get artifact content |
-| Delete | DELETE | `/kcp/v1/reports/{id}` | Soft-delete artifact |
+| Publish | POST | `/kcp/v1/artifacts` | Submit a knowledge artifact |
+| Search | GET | `/kcp/v1/artifacts?q=...` | Search by keywords/tags |
+| Retrieve | GET | `/kcp/v1/artifacts/{id}` | Get artifact metadata |
+| Download | GET | `/kcp/v1/artifacts/{id}/content` | Get artifact content |
+| Delete | DELETE | `/kcp/v1/artifacts/{id}` | Soft-delete artifact |
 
 ---
 
@@ -206,7 +206,7 @@ Data Sources → Query/Agent → Knowledge Artifact → Decision
 ### 6.1 Query Syntax
 
 ```
-GET /kcp/v1/reports?q=<keywords>&tenant_id=<tenant>&team=<team>&tags=<tag1,tag2>&from=<date>&to=<date>
+GET /kcp/v1/artifacts?q=<keywords>&tenant_id=<tenant>&team=<team>&tags=<tag1,tag2>&from=<date>&to=<date>
 ```
 
 **Parameters:**
@@ -375,8 +375,8 @@ ed25519.verify(bytes.fromhex(payload['signature']),
 
 ### 10.1 Protocol Versioning
 
-- Current version: **v0.1**
-- Version in URL: `/kcp/v1/reports` (major version only)
+- Current version: **v0.2**
+- Version in URL: `/kcp/v1/artifacts` (major version only)
 - Backward compatibility: Servers MUST support all v1.x clients
 
 ### 10.2 Payload Versioning
