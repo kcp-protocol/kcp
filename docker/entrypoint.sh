@@ -34,10 +34,25 @@ echo "========================================"
 # Create data dir if needed
 mkdir -p "$(dirname "${DB_PATH}")"
 
+# Export all KCP_* env vars so Python subprocess inherits them
+export KCP_PEERS
+export KCP_PEERS_URL
+export KCP_USER_ID
+export KCP_TENANT_ID
+export KCP_DATA_DIR
+export KCP_PORT
+export KCP_HOST
+export KCP_NODE_ID
+
 exec python - <<PYEOF
 import sys
+import os
 sys.path.insert(0, '/app')
 from kcp.node import KCPNode
+
+# Verify env vars are available
+peers = os.environ.get("KCP_PEERS", "")
+print(f"  peers     : {len([p for p in peers.split(',') if p.strip()])} configured")
 
 node = KCPNode(
     user_id="${USER_ID}",
