@@ -1,6 +1,6 @@
 # KCP Roadmap
 
-**Version:** 0.5  
+**Version:** 0.6  
 **Updated:** March 2026  
 **Author:** Thiago Silva
 
@@ -39,6 +39,7 @@ KCP becomes the standard protocol for AI-generated knowledge — from personal u
   - [x] Hybrid filesystem storage (content_store.py)
   - [x] Peer discovery API (gossip + bootstrap via peers.json)
   - [x] Multi-peer replication factor (kcp_replication table, ACK-based tracking)
+  - [x] **Identity Recovery (BIP-39 mnemonic) — 12/24 word backup phrases**
 - [x] TypeScript SDK — Node.js 25, ESM + CJS + DTS (**37 tests ✅**)
   - [x] KCPNode (publish, get, search, verify, lineage, stats)
   - [x] Ed25519 + SHA-256 via @noble/* (zero native deps)

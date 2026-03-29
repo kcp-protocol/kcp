@@ -134,13 +134,26 @@ Resposta:
 
 ## 🛠️ Implementação de Referência
 
-**162 testes passando em 3 SDKs:**
+**227 testes passando em 3 SDKs + MCP Bridge:**
 
 | SDK | Linguagem | Testes | Status |
 |-----|-----------|--------|--------|
-| Python | Python 3.13 · pytest | ✅ **61 testes** | Pronto para produção |
+| Python | Python 3.13 · pytest | ✅ **216 testes** | Pronto para produção |
 | TypeScript | Node.js 25 · Jest | ✅ **37 testes** | Pronto para produção |
 | Go | Go 1.22 · go test | ✅ **64 testes** | Pronto para produção |
+| MCP Bridge | Python · pytest-asyncio | ✅ **23 testes** | Pronto para produção |
+
+## 🌐 Rede de Peers Pública
+
+Peers KCP são nós abertos com os quais qualquer pessoa pode sincronizar. Sem cadastro.
+
+| Peer | URL | Status | Região |
+|------|-----|--------|--------|
+| peer01 | `https://peer01.kcp-protocol.org` | ✅ Live | South America |
+| peer02 | `https://peer02.kcp-protocol.org` | ✅ Live | South America |
+| peer03-08 | `https://peerXX.kcp-protocol.org` | ✅ Live | South America |
+
+> **~8.000 artefatos** distribuídos na rede. Veja status em [kcp-protocol.org/status.html](https://kcp-protocol.org/status.html)
 
 SDKs disponíveis em:
 
@@ -179,27 +192,66 @@ Impacto real medido em adoções iniciais:
 
 ## 🗺️ Roadmap
 
-### Fase 1: MVP ✅ Concluído
+### Fase 1: SDK & Protocolo ✅ Concluído (Março 2026)
 - [x] Especificação do protocolo v0.2
-- [x] Python SDK — **61 testes ✅**
+- [x] Python SDK — **216 testes ✅**
 - [x] TypeScript SDK — **37 testes ✅**
 - [x] Go SDK — **64 testes ✅**
-- [x] **Total: 162 testes passando**
+- [x] MCP Bridge (Claude, Cursor, Windsurf) — **23 testes ✅**
+- [x] **Total: 227 testes passando**
 - [x] Org GitHub `kcp-protocol`
 - [x] Landing page `kcp-protocol.org`
 
-### Fase 2: Escala (Meses 2-4)
-- [ ] MCP Wrapper Server (Claude, Cursor, Windsurf)
-- [ ] Integração com Vector DB (busca semântica)
-- [ ] SDKs Rust, Java, Kotlin
-- [ ] 100 early adopters
+### Fase 2: Infraestrutura de Produção ✅ Concluído (Março 2026)
+- [x] 8 peers públicos com SSL/TLS
+- [x] Rate limiting + proteção contra abuso
+- [x] Dashboard web com monitoramento
+- [x] Replicação multi-peer
 
-### Fase 3: Padronização (Meses 4-6)
-- [ ] Backend P2P com IPFS + libp2p
-- [ ] Formato nativo KCP (append-only, assinado)
-- [ ] Submissão de RFC ao IETF
-- [ ] Proposta de Community Group no W3C
-- [ ] Lançamento da comunidade open-source
+### Fase 3: Rede Comunitária ✅ Concluído (Março 2026)
+- [x] Deploy one-click (Docker)
+- [x] ~8.000 artefatos semeados
+- [x] Documentação para operadores
+
+### Fase 4: Ecossistema ✅ Concluído (Março 2026)
+- [x] OpenAPI spec
+- [x] GitHub Action
+- [x] **Recuperação de Identidade (BIP-39)** — 12 palavras para backup
+
+### Próximos Passos (v1.0)
+- [ ] Pacotes PyPI e npm
+- [ ] Extensão VS Code
+- [ ] Federation hub-to-hub
+- [ ] Busca semântica (vetores)
+
+---
+
+## 🔐 Identidade & Recuperação
+
+Sua identidade KCP é sua assinatura criptográfica — prova que você criou seus artefatos.
+
+### Criar Identidade (primeira vez)
+
+```bash
+kcp identity create
+```
+
+Isso gera uma **frase de recuperação de 12 palavras** como:
+```
+abandon ability able about above absent absorb abstract absurd abuse access accident
+```
+
+> ⚠️ **Anote estas palavras e guarde em segurança!** Quem tiver essas palavras tem sua identidade.
+
+### Recuperar Identidade (novo computador)
+
+```bash
+kcp identity recover
+```
+
+Digite suas 12 palavras e sua identidade é restaurada — mesmo Node ID, mesma assinatura.
+
+📖 [Guia Completo de Identidade](docs/identity-guide.md)
 
 ---
 
