@@ -13,6 +13,11 @@ Quick start (embedded — no server needed):
 With HTTP server (for P2P sharing):
     node = KCPNode(user_id="alice@acme.com")
     node.serve(port=8800)  # Opens Web UI at http://localhost:8800/ui
+
+Identity management:
+    from kcp.identity import create_identity, recover_identity
+    identity = create_identity()  # Shows 12-word recovery phrase
+    # Or: kcp identity create (CLI)
 """
 
 __version__ = "0.2.0"
@@ -24,6 +29,18 @@ from .store import LocalStore
 from .node import KCPNode
 from .hub import HubBackend
 from .client import KCPClient
+
+# Identity (optional import - requires mnemonic package)
+try:
+    from .identity import (
+        create_identity,
+        recover_identity,
+        KCPIdentity,
+        IdentityStrength,
+    )
+    _HAS_IDENTITY = True
+except ImportError:
+    _HAS_IDENTITY = False
 
 __all__ = [
     # Core
@@ -43,3 +60,12 @@ __all__ = [
     "verify_artifact",
     "hash_content",
 ]
+
+# Add identity exports if available
+if _HAS_IDENTITY:
+    __all__.extend([
+        "create_identity",
+        "recover_identity",
+        "KCPIdentity",
+        "IdentityStrength",
+    ])

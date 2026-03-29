@@ -5,6 +5,11 @@ Command-line interface for operating a KCP node.
 
 Usage:
     kcp init                          # Initialize node (generate keys, create DB)
+    kcp identity create               # Create new identity with recovery phrase
+    kcp identity recover              # Recover identity from recovery phrase
+    kcp identity show                 # Show current identity
+    kcp identity export               # Export identity backup
+    kcp identity import               # Import identity from backup
     kcp publish --title "..." FILE    # Publish a file as knowledge artifact
     kcp search "query"                # Search artifacts
     kcp list                          # List recent artifacts
@@ -15,7 +20,7 @@ Usage:
     kcp peer list                     # List peers
     kcp sync URL                      # Sync with a peer
     kcp stats                         # Show node stats
-    kcp keygen                        # Generate new keypair
+    kcp keygen                        # Generate new keypair (legacy)
 """
 
 from __future__ import annotations
@@ -39,6 +44,8 @@ def main():
 
     if cmd == "init":
         cmd_init(rest)
+    elif cmd == "identity":
+        cmd_identity(rest)
     elif cmd == "publish":
         cmd_publish(rest)
     elif cmd == "search":
@@ -76,6 +83,58 @@ def _get_node(**kwargs):
     db_path = os.environ.get("KCP_DB", kwargs.get("db_path", "~/.kcp/kcp.db"))
 
     return KCPNode(user_id=user_id, tenant_id=tenant_id, db_path=db_path)
+
+
+def _detect_language() -> str:
+    """Detect user's preferred language."""
+    lang = os.environ.get("LANG", "en_US").lower()
+    return "pt" if "pt" in lang else "en"
+
+
+def cmd_identity(args):
+    """Manage KCP identity (create, recover, show, export, import)."""
+    from .identity_cli import (
+        wizard_create_identity,
+        wizard_recover_identity,
+        show_identity,
+        export_backup,
+        import_backup,
+    )
+    
+    lang = _detect_language()
+    
+    if not args or args[0] in ("-h", "--help"):
+        print("""
+🔐 KCP Identity Management
+
+Commands:
+    kcp identity create     Create new identity with recovery phrase
+    kcp identity recover    Recover identity from recovery phrase
+    kcp identity show       Show current identity
+    kcp identity export     Export identity to backup file
+    kcp identity import     Import identity from backup file
+
+Your identity is your cryptographic signature. Back it up!
+""")
+        return
+    
+    subcmd = args[0]
+    
+    if subcmd == "create":
+        wizard_create_identity(lang)
+    elif subcmd == "recover":
+        wizard_recover_identity(lang)
+    elif subcmd == "show":
+        show_identity(lang)
+    elif subcmd == "export":
+        output = args[1] if len(args) > 1 else None
+        export_backup(output, lang)
+    elif subcmd == "import":
+        input_file = args[1] if len(args) > 1 else None
+        import_backup(input_file, lang)
+    else:
+        print(f"Unknown identity command: {subcmd}")
+        print("Use: kcp identity --help")
 
 
 def cmd_init(args):

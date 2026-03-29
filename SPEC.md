@@ -302,9 +302,59 @@ If `embeddings` are provided in the payload:
 ```
 Private Key: ed25519:secret (NEVER transmitted)
 Public Key: ed25519:public (stored in user profile)
+Node ID: hex(public_key) (32 bytes = 64 hex chars)
 ```
 
-**Signature Generation:**
+**Key Generation Methods:**
+
+1. **Mnemonic-based (Recommended)** — BIP-39 compatible recovery phrase
+2. **Random generation** — Cryptographically secure random 32 bytes
+3. **Import from backup** — Restore from encrypted backup file
+
+### 8.4 Identity Recovery (Mnemonic)
+
+Users can generate their keypair from a **12-word recovery phrase** (BIP-39 standard):
+
+```
+abandon ability able about above absent absorb abstract absurd abuse access accident
+```
+
+**Derivation Process:**
+```python
+from mnemonic import Mnemonic
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+# 1. Generate mnemonic (128 bits entropy = 12 words)
+m = Mnemonic("english")
+mnemonic = m.generate(128)  # "word1 word2 ... word12"
+
+# 2. Derive 64-byte seed via PBKDF2-SHA512 (BIP-39 standard)
+seed = m.to_seed(mnemonic, passphrase="")  # Optional passphrase
+
+# 3. Use first 32 bytes as Ed25519 private key
+private_key = Ed25519PrivateKey.from_private_bytes(seed[:32])
+public_key = private_key.public_key()
+
+# 4. Node ID = hex(public_key)
+node_id = public_key.public_bytes_raw().hex()
+```
+
+**Recovery:**
+- Same mnemonic + passphrase = same keypair = same Node ID
+- Users can move between devices by memorizing/storing their 12 words
+- **Security:** Anyone with the mnemonic has full access to the identity
+
+**CLI Commands:**
+```bash
+kcp identity create     # Generate new identity with recovery phrase
+kcp identity recover    # Restore identity from recovery phrase
+kcp identity show       # Display current Node ID and fingerprint
+kcp identity export     # Export to encrypted backup file
+kcp identity import     # Import from backup file
+```
+
+### 8.5 Signature Generation
+
 ```python
 import hashlib
 import ed25519
@@ -322,7 +372,8 @@ signature = ed25519.sign(canonical.encode('utf-8'), user_private_key)
 payload['signature'] = signature.hex()
 ```
 
-**Verification:**
+### 8.6 Signature Verification
+
 ```python
 # Server retrieves user's public key
 user_public_key = get_user_public_key(payload['user_id'])

@@ -178,6 +178,7 @@ All modes use the **same API**. The backend is transparent to the user.
 |----------|-------------|
 | [SPEC.md](SPEC.md) | Full protocol specification |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture, storage, P2P, security |
+| [Identity Guide](docs/identity-guide.md) | 🔐 Backup & recovery of your KCP identity |
 | [AI_AGENT_GUIDE.md](AI_AGENT_GUIDE.md) | Integration guide for AI agents (LLMs, Copilot, Claude) |
 | [llms.txt](llms.txt) | LLM indexing manifest ([llmstxt.org](https://llmstxt.org/) convention) |
 | [RFC-001-CORE.md](RFC-001-CORE.md) | Formal RFC (root) |
@@ -194,6 +195,36 @@ All modes use the **same API**. The backend is transparent to the user.
 | [TypeScript SDK](sdk/typescript/README.md) | TypeScript SDK documentation |
 | [Testing Guide](docs/testing.md) | Running & writing tests for all SDKs |
 | [Contributing](CONTRIBUTING.md) | Contribution guidelines |
+
+## 🔐 Identity & Recovery
+
+Your KCP identity is your cryptographic signature — it proves you created your knowledge artifacts.
+
+### Create Identity (first time)
+
+```bash
+kcp identity create
+```
+
+This generates a **12-word recovery phrase** like:
+```
+abandon ability able about above absent absorb abstract absurd abuse access accident
+```
+
+> ⚠️ **Write these words down and store safely!** Anyone with these words has your identity.
+
+### Recover Identity (new computer)
+
+```bash
+kcp identity recover
+```
+
+Enter your 12 words and your identity is restored — same Node ID, same signature, same access to your private artifacts.
+
+### Learn More
+
+- 📖 [Full Identity Guide](docs/identity-guide.md) — backup strategies, security tips, FAQ
+- 🔒 Uses BIP-39 standard (same as crypto wallets)
 
 ## Project Structure
 
