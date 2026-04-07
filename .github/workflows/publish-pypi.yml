@@ -6,9 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run (TestPyPI only)'
+        description: 'Dry run (publica apenas no TestPyPI)'
         required: false
         default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 jobs:
   publish-pypi:
@@ -16,39 +20,39 @@ jobs:
     permissions:
       id-token: write  # OIDC for trusted publishing
       contents: read
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      
+
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
           pip install build twine
-      
+
       - name: Build package
         working-directory: sdk/python
         run: python -m build
-      
+
       - name: Check dist
         working-directory: sdk/python
         run: twine check dist/*
-      
+
       - name: Publish to TestPyPI (dry run)
         if: github.event.inputs.dry_run == 'true'
         working-directory: sdk/python
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
-        run: twine upload --repository testpypi dist/*
-      
+        run: twine upload --repository testpypi dist/* --skip-existing
+
       - name: Publish to PyPI (production)
-        if: github.event_name == 'release' && github.event.inputs.dry_run != 'true'
-        working-directory: sdk/python
+        if: github.event_name == 'release' || github.event.inputs.dry_run == 'false'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: sdk/python/dist/
+          skip-existing: true
