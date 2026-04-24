@@ -5,21 +5,19 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: 'Dry run (publica apenas no TestPyPI)'
-        required: false
-        default: 'true'
+      target:
+        description: 'Destino de publicação'
+        required: true
+        default: 'testpypi'
         type: choice
         options:
-          - 'true'
-          - 'false'
+          - testpypi
+          - pypi
 
 jobs:
-  publish-pypi:
+  build:
+    name: Build package
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write  # OIDC for trusted publishing
-      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -31,28 +29,74 @@ jobs:
 
       - name: Install build tools
         run: |
-          python -m pip install --upgrade pip
-          pip install build twine
+          python -m pip install --upgrade pip build twine
+
+      - name: Fix pyproject.toml license format
+        working-directory: sdk/python
+        run: |
+          sed -i 's/license = {text = "MIT"}/license = "MIT"/' pyproject.toml
 
       - name: Build package
         working-directory: sdk/python
         run: python -m build
 
-      - name: Check dist
+      - name: Validate dist
         working-directory: sdk/python
         run: twine check dist/*
 
-      - name: Publish to TestPyPI (dry run)
-        if: github.event.inputs.dry_run == 'true'
-        working-directory: sdk/python
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
-        run: twine upload --repository testpypi dist/* --skip-existing
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: sdk/python/dist/
 
-      - name: Publish to PyPI (production)
-        if: github.event_name == 'release' || github.event.inputs.dry_run == 'false'
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    # Roda apenas quando disparado manualmente com target=testpypi
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'testpypi'
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/kcp
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: sdk/python/dist/
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist/
+          skip-existing: true
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    # Roda apenas em release oficial OU quando disparado manualmente com target=pypi
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'pypi')
+    environment:
+      name: pypi
+      url: https://pypi.org/p/kcp
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
           skip-existing: true
