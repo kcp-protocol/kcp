@@ -22,3 +22,32 @@ sdk/go/bin/
 
 # OS artifacts
 .DS_Store
+
+# ─── Secrets & credentials — NEVER commit these ───────────────
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.env
+!*.env.example
+
+# Private keys & certificates
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+*.crt
+
+# Credential files
+credentials.json
+secrets.json
+serviceaccount.json
+*_credentials.json
+*_secrets.json
+
+# Cloud provider configs with credentials
+.aws/credentials
+.gcp/
+gcloud-service-key.json
