@@ -15,9 +15,12 @@ from __future__ import annotations
 
 import json
 import base64
+import logging
 from typing import Optional
 
 from .models import KnowledgeArtifact, Lineage, ACL, SearchResponse, SearchResult
+
+logger = logging.getLogger("kcp.hub")
 
 
 class HubBackend:
@@ -90,7 +93,8 @@ class HubBackend:
         try:
             data = self._request("GET", f"/kcp/v1/artifacts/{artifact_id}")
             return KnowledgeArtifact.from_dict(data)
-        except Exception:
+        except Exception as e:
+            logger.debug("Hub get failed for %s: %s", artifact_id[:8], e)
             return None
 
     def get_content(self, content_hash: str) -> Optional[bytes]:
@@ -100,7 +104,8 @@ class HubBackend:
             if "content" in data:
                 return base64.b64decode(data["content"])
             return None
-        except Exception:
+        except Exception as e:
+            logger.debug("Hub get_content failed for %s: %s", content_hash[:8], e)
             return None
 
     def delete(self, artifact_id: str, user_id: str = "") -> bool:
@@ -108,7 +113,8 @@ class HubBackend:
         try:
             self._request("DELETE", f"/kcp/v1/artifacts/{artifact_id}")
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning("Hub delete failed for %s: %s", artifact_id[:8], e)
             return False
 
     def search(
@@ -200,7 +206,8 @@ class HubBackend:
         try:
             data = self._request("GET", f"/kcp/v1/config/{key}")
             return data.get("value", default)
-        except Exception:
+        except Exception as e:
+            logger.debug("Hub get_config failed for key %s: %s", key, e)
             return default
 
     def set_config(self, key: str, value: str):

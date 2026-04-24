@@ -16,6 +16,7 @@ Usage (with HTTP server for P2P/sharing):
 
 from __future__ import annotations
 
+import logging
 import os
 import json
 import base64
@@ -32,6 +33,7 @@ from .crypto import (
 from .store import LocalStore
 from .sync_worker import SyncWorker
 
+logger = logging.getLogger("kcp.node")
 
 class KCPNode:
     """
@@ -175,6 +177,7 @@ class KCPNode:
             try:
                 return decrypt_content(raw, content_key)
             except Exception:
+                logger.debug("Decryption failed for %s — key mismatch", artifact_id)
                 return None  # key mismatch (artifact from another node)
         return raw
 
@@ -318,8 +321,8 @@ class KCPNode:
                         )
                         bootstrap_count += 1
                         discovered_total += 1
-        except Exception:
-            pass  # Network unavailable — continue with gossip
+        except Exception as e:
+            logger.debug("Bootstrap registry unavailable — continuing with gossip: %s", e)
 
         # ── 2. Gossip from currently known peers ─────────────
         if gossip:
@@ -350,8 +353,9 @@ class KCPNode:
                                 discovered_total += 1
                         # Mark peer as reachable
                         self.store.update_peer_seen_by_url(peer_url)
-                except Exception:
-                    continue  # Peer unreachable — skip
+                except Exception as e:
+                    logger.debug("Peer %s unreachable during gossip: %s", peer_url, e)
+                    continue
 
         return {
             "discovered": discovered_total,
@@ -388,7 +392,8 @@ class KCPNode:
                     )
                     if resp.status_code in (200, 201):
                         pushed += 1
-                except Exception:
+                except Exception as e:
+                    logger.debug("Failed to push artifact %s to %s: %s", aid[:8], peer_url, e)
                     continue
 
         return {"pushed": pushed, "total": len(ids)}
@@ -754,10 +759,10 @@ class KCPNode:
 
         self._port = port  # stored so network-status can probe self via localhost
         app = self.create_app()
-        print(f"🌐 KCP Node serving at http://{host}:{port}")
-        print(f"📡 Web UI: http://localhost:{port}/ui")
-        print(f"🔑 Node ID: {self.node_id}")
-        print(f"👤 User: {self.user_id}")
+        logger.info("KCP Node serving at http://%s:%d", host, port)
+        logger.info("Web UI: http://localhost:%d/ui", port)
+        logger.info("Node ID: %s", self.node_id)
+        logger.info("User: %s", self.user_id)
         uvicorn.run(app, host=host, port=port, log_level="info")
 
     # ─── Internal ──────────────────────────────────────────────

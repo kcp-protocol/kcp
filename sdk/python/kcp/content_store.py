@@ -91,7 +91,8 @@ class ContentStore:
         try:
             tmp.write_bytes(data)
             tmp.rename(path)
-        except Exception:
+        except Exception as e:
+            logger.warning("ContentStore: atomic write failed for %s: %s", content_hash[:8], e)
             try:
                 tmp.unlink(missing_ok=True)
             except Exception:
@@ -211,8 +212,8 @@ class ContentStore:
                     h, _, rel = line.strip().partition(" ")
                     if h == content_hash:
                         return self.content_root / rel
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("ContentStore: index read error: %s", e)
         return None
 
     def _write_index(self, content_hash: str, path: Path):
@@ -221,8 +222,8 @@ class ContentStore:
         try:
             with self._index_path.open("a") as f:
                 f.write(f"{content_hash} {rel}\n")
-        except Exception:
-            pass  # index is best-effort
+        except Exception as e:
+            logger.debug("ContentStore: index write error: %s", e)  # index is best-effort
 
     def _remove_index(self, content_hash: str):
         """Remove a hash entry from the index file."""
@@ -232,8 +233,8 @@ class ContentStore:
             lines = self._index_path.read_text().splitlines(keepends=True)
             kept = [l for l in lines if not l.startswith(content_hash + " ")]
             self._index_path.write_text("".join(kept))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("ContentStore: index remove error: %s", e)
 
     def _scan_for_hash(self, content_hash: str) -> Optional[Path]:
         """Walk all shards looking for {hash}.bin. O(n) — last resort."""
