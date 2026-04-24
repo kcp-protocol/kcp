@@ -21,6 +21,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,11 +32,6 @@ jobs:
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip build twine
-
-      - name: Fix pyproject.toml license format
-        working-directory: sdk/python
-        run: |
-          sed -i 's/license = {text = "MIT"}/license = "MIT"/' pyproject.toml
 
       - name: Build package
         working-directory: sdk/python

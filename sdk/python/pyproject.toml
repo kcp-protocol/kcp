@@ -7,7 +7,7 @@ name = "kcp-protocol"
 version = "0.2.0"
 description = "Knowledge Context Protocol — Layer 8 for AI-generated knowledge"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.10"
 authors = [{name = "Thiago Silva", email = "contato@kcp-protocol.org"}]
 
@@ -19,7 +19,6 @@ keywords = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
