@@ -1,0 +1,105 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    name: Lint, Test & Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necessário para SonarCloud (blame/histórico)
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            pytest pytest-asyncio pytest-cov \
+            ruff bandit \
+            cryptography requests mnemonic colorama \
+            fastapi uvicorn httpx
+          # MCP server deps
+          pip install -e mcp-server/ 2>/dev/null || true
+
+      # ── Linting com Ruff (ultra-rápido, substitui flake8+isort+pyupgrade) ──
+      - name: Ruff — lint
+        run: ruff check sdk/python/kcp mcp-server/kcp_mcp_server --output-format=github
+
+      - name: Ruff — format check
+        run: ruff format --check sdk/python/kcp mcp-server/kcp_mcp_server
+
+      # ── Segurança com Bandit ──
+      - name: Bandit — security scan
+        run: |
+          bandit -r sdk/python/kcp mcp-server/kcp_mcp_server \
+            -f json -o bandit-report.json \
+            --severity-level medium \
+            --confidence-level medium || true
+          bandit -r sdk/python/kcp mcp-server/kcp_mcp_server \
+            --severity-level medium \
+            --confidence-level medium
+
+      # ── Testes com cobertura ──
+      - name: Run tests (Python SDK)
+        working-directory: sdk/python
+        run: |
+          python -m pytest tests/ \
+            --cov=kcp \
+            --cov-report=xml:../../coverage-sdk.xml \
+            --cov-report=term-missing \
+            --asyncio-mode=auto \
+            -v
+
+      - name: Run tests (MCP Server)
+        working-directory: mcp-server
+        run: |
+          python -m pytest tests/ \
+            --cov=kcp_mcp_server \
+            --cov-report=xml:../coverage-mcp.xml \
+            --cov-report=term-missing \
+            -v || true  # MCP tests podem precisar de servidor
+
+      # ── Merge coverage reports ──
+      - name: Merge coverage reports
+        run: |
+          pip install coverage
+          python -m coverage combine coverage-sdk.xml coverage-mcp.xml 2>/dev/null || true
+          cp coverage-sdk.xml coverage.xml
+
+      # ── Upload para Codecov ──
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          flags: python-sdk
+          name: kcp-coverage
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      # ── SonarCloud ──
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # ── Artefatos de relatório ──
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: |
+            coverage.xml
+            bandit-report.json
