@@ -132,7 +132,7 @@ KCP defines four deployment modes (RFC KCP-004):
 
 ### Ready for release
 
-- [ ] **PyPI package** (`pip install kcp`) — workflow ready, awaiting first release
+- [ ] **PyPI package** (`pip install kcp-protocol`) — workflow ready, awaiting first release
 - [ ] **npm package** (`npm install @kcp/client`) — workflow ready, awaiting first release
 - [ ] **VS Code extension** — planned for v0.6
 - [ ] **Helm chart** — planned for v0.6

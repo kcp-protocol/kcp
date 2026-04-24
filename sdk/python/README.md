@@ -5,9 +5,9 @@ Reference implementation of the Knowledge Context Protocol.
 ## Install
 
 ```bash
-pip install kcp                    # Core (local storage + crypto)
-pip install kcp[server]            # + HTTP server for P2P sharing
-pip install kcp[all]               # Everything
+pip install kcp-protocol                    # Core (local storage + crypto)
+pip install kcp-protocol[server]            # + HTTP server for P2P sharing
+pip install kcp-protocol[all]               # Everything
 ```
 
 ## Quick Start
