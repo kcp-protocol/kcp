@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>KCP Network Status</title>
-<meta name="description" content="Status da rede pública KCP — gerado automaticamente pelo VPS a cada 5 minutos.">
+<meta name="description" content="Status em tempo real da rede pública KCP — verificado diretamente do seu navegador.">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -17,231 +17,292 @@
   --radius:8px;--radius-lg:12px;
   --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 }
-body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100dvh;display:flex;flex-direction:column}
 a{color:var(--blue);text-decoration:none}
 a:hover{text-decoration:underline}
 code{font-family:'SF Mono','Fira Code',monospace;font-size:.85em;background:var(--bg-soft);padding:.15em .45em;border-radius:3px}
-nav{display:flex;align-items:center;gap:1.5rem;padding:.875rem 2rem;background:var(--bg-card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
+nav{display:flex;align-items:center;gap:1.5rem;padding:.75rem 1.5rem;background:var(--bg-card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;flex-wrap:wrap}
 .brand{font-weight:800;font-size:1rem;color:var(--blue);letter-spacing:-.02em;text-decoration:none}
-.nav-link{font-size:.875rem;color:var(--text-2)}
+.nav-link{font-size:.875rem;color:var(--text-2);white-space:nowrap}
 .nav-link:hover{color:var(--text);text-decoration:none}
-.spacer{flex:1}
-.container{max-width:1080px;margin:0 auto;padding:0 1.5rem}
-section{padding:3.5rem 0}
-h1{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1.15}
-h2{font-size:1.4rem;font-weight:700;margin-bottom:1.25rem}
-.eyebrow{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:.5rem}
-.sub{color:var(--text-2);font-size:.95rem;margin-top:.5rem;line-height:1.6}
-.status-banner{display:flex;align-items:center;gap:.75rem;padding:.875rem 1.25rem;border-radius:var(--radius-lg);background:var(--green-soft);border:1px solid var(--green);font-weight:600;font-size:.9rem;margin-bottom:2.5rem}
+.spacer{flex:1;min-width:1rem}
+.container{max-width:1080px;margin:0 auto;padding:0 1.5rem;width:100%}
+section{padding:2.5rem 0;flex:1}
+h1{font-size:1.75rem;font-weight:800;letter-spacing:-.03em;line-height:1.15}
+.eyebrow{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:.375rem}
+.sub{color:var(--text-2);font-size:.9rem;margin-top:.375rem;line-height:1.5}
+.status-banner{display:flex;align-items:center;gap:.75rem;padding:.75rem 1.25rem;border-radius:var(--radius-lg);font-weight:600;font-size:.875rem;margin-bottom:2rem;transition:all .3s}
+.status-banner.ok{background:var(--green-soft);border:1px solid var(--green)}
 .status-banner.degraded{background:rgba(245,158,11,.1);border-color:var(--amber)}
 .status-banner.down{background:rgba(239,68,68,.1);border-color:var(--red)}
-.pulse{width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(34,197,94,.4);animation:pulse-ring 1.5s infinite}
+.status-banner.checking{background:var(--bg-soft);border:1px solid var(--border)}
+.pulse{width:10px;height:10px;border-radius:50%;flex-shrink:0;background:var(--green);box-shadow:0 0 0 0 rgba(34,197,94,.4)}
+.pulse.ani{animation:pulse-ring 1.5s infinite}
+.pulse.red{background:var(--red);box-shadow:none;animation:none}
+.pulse.amber{background:var(--amber);box-shadow:none;animation:none}
+.pulse.gray{background:var(--text-3);box-shadow:none}
 @keyframes pulse-ring{0%{box-shadow:0 0 0 0 rgba(34,197,94,.4)}70%{box-shadow:0 0 0 8px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
-.peer-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-bottom:2.5rem}
-.peer-card{background:var(--bg-card);border:1.5px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem}
+.badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:50px;padding:.2rem .65rem;font-size:.7rem;font-weight:600;color:var(--blue);margin-top:.65rem;white-space:nowrap}
+.peer-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:.875rem;margin-bottom:2rem}
+.peer-card{background:var(--bg-card);border:1.5px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem;transition:border-color .3s,opacity .3s}
 .peer-card.online{border-color:var(--green)}
 .peer-card.offline{border-color:var(--red)}
-.peer-name{font-weight:700;font-size:1rem;margin-bottom:.25rem}
-.peer-url{font-size:.8rem;color:var(--text-2);font-family:monospace;margin-bottom:.875rem}
-.peer-status{display:flex;align-items:center;gap:.5rem;font-size:.85rem;font-weight:600}
+.peer-card.checking{opacity:.6}
+.peer-name{font-weight:700;font-size:.95rem;margin-bottom:.2rem}
+.peer-url{font-size:.75rem;color:var(--text-2);font-family:monospace;margin-bottom:.75rem;word-break:break-all}
+.peer-status{display:flex;align-items:center;gap:.5rem;font-size:.8rem;font-weight:600}
 .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .dot.green{background:var(--green)}
 .dot.red{background:var(--red)}
-.peer-meta{margin-top:.875rem;display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
-.peer-meta-item{background:var(--bg-soft);border-radius:var(--radius);padding:.5rem .75rem;font-size:.8rem}
-.peer-meta-item span{display:block;color:var(--text-3);font-size:.7rem;margin-bottom:.2rem}
-footer{padding:2rem 0;border-top:1px solid var(--border);text-align:center;font-size:.8rem;color:var(--text-3)}
-.static-badge{display:inline-flex;align-items:center;gap:.375rem;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:50px;padding:.25rem .75rem;font-size:.7rem;font-weight:600;color:var(--blue);margin-top:.75rem}
-
+.dot.gray{background:var(--text-3)}
+.peer-meta{margin-top:.75rem;display:grid;grid-template-columns:1fr 1fr;gap:.4rem;transition:opacity .3s}
+.peer-meta-item{background:var(--bg-soft);border-radius:var(--radius);padding:.4rem .65rem;font-size:.75rem}
+.peer-meta-item span{display:block;color:var(--text-3);font-size:.65rem;margin-bottom:.15rem}
+.controls{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-top:1.25rem}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .9rem;border-radius:var(--radius);font-size:.8rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg-card);color:var(--text);transition:all .15s;font-family:inherit}
+.btn:hover{background:var(--bg-soft);border-color:var(--border-strong)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:default}
+.last-updated{font-size:.75rem;color:var(--text-3);white-space:nowrap}
+footer{margin-top:auto;padding:1.5rem 0;border-top:1px solid var(--border);text-align:center;font-size:.75rem;color:var(--text-3)}
+label{display:inline-flex;align-items:center;gap:.35rem;font-size:.8rem;color:var(--text-2);cursor:pointer}
+input[type=checkbox]{accent-color:var(--blue);width:14px;height:14px;cursor:pointer}
+@media(max-width:600px){
+  nav{gap:.75rem;padding:.6rem 1rem}
+  h1{font-size:1.35rem}
+  .peer-grid{grid-template-columns:1fr}
+  .controls{flex-direction:column;align-items:stretch}
+  .btn{justify-content:center}
+}
 </style>
 </head>
 <body>
 
 <nav>
   <a href="https://kcp-protocol.org" class="brand">KCP</a>
-  <a href="https://kcp-protocol.org" class="nav-link">← Voltar ao site</a>
+  <a href="https://kcp-protocol.org" class="nav-link">← Voltar</a>
   <a href="https://github.com/kcp-protocol/kcp" class="nav-link" target="_blank">GitHub</a>
-  <div class="spacer"></div>
-  <span style="font-size:.75rem;color:var(--text-3)">Atualizado: 3 de June de 2026 às 00:05 UTC</span>
+  <span class="spacer"></span>
+  <span class="last-updated" id="last-updated">—</span>
 </nav>
 
 <section>
   <div class="container">
     <div class="eyebrow">Status da Rede</div>
     <h1>KCP Network Status</h1>
-    <p class="sub">Rede pública de peers KCP — verificado diretamente pelo VPS e publicado como página estática.</p>
-    <div class="static-badge">🔒 Página estática · sem dependência de JS externo · atualizada a cada 5 min</div>
+    <p class="sub">Rede pública de peers KCP — verificado diretamente do seu navegador em tempo real.</p>
+    <div class="badge">🔒 Client-side · sem servidor · cache local</div>
 
-    <div style="margin-top:2rem">
-      <div class="status-banner" id="global-banner">
-        <div class="pulse" id="global-dot" style="background:var(--green)"></div>
-        <span id="global-msg">Todos os sistemas operacionais — 8/8 peers online</span>
-      </div>
-
-      <div class="peer-grid" id="peer-grid">
-        
-    <div class="peer-card online" id="card-0">
-      <div class="peer-name">KCP Public Peer 01</div>
-      <div class="peer-url">https://peer01.kcp-protocol.org</div>
-      <div class="peer-status">
-        <div class="dot green"></div>
-        <span style="color:var(--green)">● Online — 99ms</span>
-      </div>
-      
-      <div class="peer-meta">
-        <div class="peer-meta-item"><span>Artefatos</span>1054</div>
-        <div class="peer-meta-item"><span>Peers</span>7</div>
-        <div class="peer-meta-item"><span>Versão</span>0.2.0</div>
-        <div class="peer-meta-item"><span>Latência</span>99ms</div>
-      </div>
-      <div style="margin-top:.875rem">
-        <a href="https://peer01.kcp-protocol.org/kcp/v1/health" target="_blank" style="font-size:.75rem;color:var(--blue)">Health ↗</a>
-      </div>
+    <div class="controls">
+      <button class="btn" onclick="checkAll()" id="btn-check">↻ Verificar agora</button>
+      <label><input type="checkbox" id="auto-refresh" checked onchange="toggleAutoRefresh()"> Auto (30s)</label>
     </div>
 
-    <div class="peer-card online" id="card-1">
-      <div class="peer-name">KCP Public Peer 02</div>
-      <div class="peer-url">https://peer02.kcp-protocol.org</div>
-      <div class="peer-status">
-        <div class="dot green"></div>
-        <span style="color:var(--green)">● Online — 37ms</span>
+    <div style="margin-top:1.5rem">
+      <div class="status-banner checking" id="global-banner">
+        <div class="pulse gray ani" id="global-dot"></div>
+        <span id="global-msg">Iniciando...</span>
       </div>
-      
-      <div class="peer-meta">
-        <div class="peer-meta-item"><span>Artefatos</span>1003</div>
-        <div class="peer-meta-item"><span>Peers</span>7</div>
-        <div class="peer-meta-item"><span>Versão</span>0.2.0</div>
-        <div class="peer-meta-item"><span>Latência</span>37ms</div>
-      </div>
-      <div style="margin-top:.875rem">
-        <a href="https://peer02.kcp-protocol.org/kcp/v1/health" target="_blank" style="font-size:.75rem;color:var(--blue)">Health ↗</a>
-      </div>
-    </div>
-
-    <div class="peer-card online" id="card-2">
-      <div class="peer-name">KCP Public Peer 03</div>
-      <div class="peer-url">https://peer03.kcp-protocol.org</div>
-      <div class="peer-status">
-        <div class="dot green"></div>
-        <span style="color:var(--green)">● Online — 31ms</span>
-      </div>
-      
-      <div class="peer-meta">
-        <div class="peer-meta-item"><span>Artefatos</span>1003</div>
-        <div class="peer-meta-item"><span>Peers</span>7</div>
-        <div class="peer-meta-item"><span>Versão</span>0.2.0</div>
-        <div class="peer-meta-item"><span>Latência</span>31ms</div>
-      </div>
-      <div style="margin-top:.875rem">
-        <a href="https://peer03.kcp-protocol.org/kcp/v1/health" target="_blank" style="font-size:.75rem;color:var(--blue)">Health ↗</a>
-      </div>
-    </div>
-
-    <div class="peer-card online" id="card-3">
-      <div class="peer-name">KCP Public Peer 04</div>
-      <div class="peer-url">https://peer04.kcp-protocol.org</div>
-      <div class="peer-status">
-        <div class="dot green"></div>
-        <span style="color:var(--green)">● Online — 30ms</span>
-      </div>
-      
-      <div class="peer-meta">
-        <div class="peer-meta-item"><span>Artefatos</span>1005</div>
-        <div class="peer-meta-item"><span>Peers</span>8</div>
-        <div class="peer-meta-item"><span>Versão</span>0.2.0</div>
-        <div class="peer-meta-item"><span>Latência</span>30ms</div>
-      </div>
-      <div style="margin-top:.875rem">
-        <a href="https://peer04.kcp-protocol.org/kcp/v1/health" target="_blank" style="font-size:.75rem;color:var(--blue)">Health ↗</a>
-      </div>
-    </div>
-
-    <div class="peer-card online" id="card-4">
-      <div class="peer-name">KCP Public Peer 05</div>
-      <div class="peer-url">https://peer05.kcp-protocol.org</div>
-      <div class="peer-status">
-        <div class="dot green"></div>
-        <span style="color:var(--green)">● Online — 30ms</span>
-      </div>
-      
-      <div class="peer-meta">
-        <div class="peer-meta-item"><span>Artefatos</span>1003</div>
-        <div class="peer-meta-item"><span>Peers</span>8</div>
-        <div class="peer-meta-item"><span>Versão</span>0.2.0</div>
-        <div class="peer-meta-item"><span>Latência</span>30ms</div>
-      </div>
-      <div style="margin-top:.875rem">
-        <a href="https://peer05.kcp-protocol.org/kcp/v1/health" target="_blank" style="font-size:.75rem;color:var(--blue)">Health ↗</a>
-      </div>
-    </div>
-
-    <div class="peer-card online" id="card-5">
-      <div class="peer-name">KCP Public Peer 06</div>
-      <div class="peer-url">https://peer06.kcp-protocol.org</div>
-      <div class="peer-status">
-        <div class="dot green"></div>
-        <span style="color:var(--green)">● Online — 33ms</span>
-      </div>
-      
-      <div class="peer-meta">
-        <div class="peer-meta-item"><span>Artefatos</span>1003</div>
-        <div class="peer-meta-item"><span>Peers</span>7</div>
-        <div class="peer-meta-item"><span>Versão</span>0.2.0</div>
-        <div class="peer-meta-item"><span>Latência</span>33ms</div>
-      </div>
-      <div style="margin-top:.875rem">
-        <a href="https://peer06.kcp-protocol.org/kcp/v1/health" target="_blank" style="font-size:.75rem;color:var(--blue)">Health ↗</a>
-      </div>
-    </div>
-
-    <div class="peer-card online" id="card-6">
-      <div class="peer-name">KCP Public Peer 07</div>
-      <div class="peer-url">https://peer07.kcp-protocol.org</div>
-      <div class="peer-status">
-        <div class="dot green"></div>
-        <span style="color:var(--green)">● Online — 29ms</span>
-      </div>
-      
-      <div class="peer-meta">
-        <div class="peer-meta-item"><span>Artefatos</span>1003</div>
-        <div class="peer-meta-item"><span>Peers</span>8</div>
-        <div class="peer-meta-item"><span>Versão</span>0.2.0</div>
-        <div class="peer-meta-item"><span>Latência</span>29ms</div>
-      </div>
-      <div style="margin-top:.875rem">
-        <a href="https://peer07.kcp-protocol.org/kcp/v1/health" target="_blank" style="font-size:.75rem;color:var(--blue)">Health ↗</a>
-      </div>
-    </div>
-
-    <div class="peer-card online" id="card-7">
-      <div class="peer-name">KCP Public Peer 08</div>
-      <div class="peer-url">https://peer08.kcp-protocol.org</div>
-      <div class="peer-status">
-        <div class="dot green"></div>
-        <span style="color:var(--green)">● Online — 13ms</span>
-      </div>
-      
-      <div class="peer-meta">
-        <div class="peer-meta-item"><span>Artefatos</span>3</div>
-        <div class="peer-meta-item"><span>Peers</span>0</div>
-        <div class="peer-meta-item"><span>Versão</span>0.2.0</div>
-        <div class="peer-meta-item"><span>Latência</span>13ms</div>
-      </div>
-      <div style="margin-top:.875rem">
-        <a href="https://peer08.kcp-protocol.org/kcp/v1/health" target="_blank" style="font-size:.75rem;color:var(--blue)">Health ↗</a>
-      </div>
-    </div>
-      </div>
+      <div class="peer-grid" id="peer-grid"></div>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="container">
-    <p>KCP — Knowledge Context Protocol · <a href="https://github.com/kcp-protocol/kcp">github.com/kcp-protocol/kcp</a> · Open Source (MIT)</p>
-    <p style="margin-top:.375rem">Status verificado pelo VPS internamente via <code>localhost</code> — sem dependência de DNS externo ou firewall. Gerado em <time datetime="2026-06-03T00:05:02.078540+00:00">3 de June de 2026 às 00:05 UTC</time>.</p>
+    <p>KCP — Knowledge Context Protocol · <a href="https://github.com/kcp-protocol/kcp">github.com/kcp-protocol/kcp</a> · MIT</p>
+    <p style="margin-top:.3rem" id="footer-time"></p>
   </div>
 </footer>
 
+<script>
+// ─────────────────────────────────────────────────────────────
+// KCP Network Status — Client-side Health Check + Cache
+// ─────────────────────────────────────────────────────────────
+const PEERS_URL = '/peers.json';
+const CACHE_KEY = 'kcp_status_cache';
+const CACHE_MAX_AGE = 30000; // 30s
+
+let peersData = [];
+let autoRefreshTimer = null;
+let isChecking = false;
+
+// ─── Cache (localStorage) ───────────────────────────────────
+// Valores ficam fixos até o próximo fetch completar.
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    const age = Date.now() - cached.timestamp;
+    if (age > CACHE_MAX_AGE * 4) {
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return cached;
+  } catch { return null }
+}
+
+function saveCache(data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      timestamp: Date.now(),
+      peers: data.peers,
+      totals: data.totals,
+      timeStr: data.timeStr
+    }));
+  } catch { /* storage cheio, ignora */ }
+}
+
+// ─── Carregar peers ────────────────────────────────────────
+async function loadPeers() {
+  try {
+    const resp = await fetch(PEERS_URL);
+    peersData = (await resp.json()).peers || [];
+  } catch {
+    peersData = [
+      {url:'https://peer01.kcp-protocol.org',name:'KCP Public Peer 01',health_url:'https://peer01.kcp-protocol.org/kcp/v1/health'},
+      {url:'https://peer02.kcp-protocol.org',name:'KCP Public Peer 02',health_url:'https://peer02.kcp-protocol.org/kcp/v1/health'},
+      {url:'https://peer03.kcp-protocol.org',name:'KCP Public Peer 03',health_url:'https://peer03.kcp-protocol.org/kcp/v1/health'},
+      {url:'https://peer04.kcp-protocol.org',name:'KCP Public Peer 04',health_url:'https://peer04.kcp-protocol.org/kcp/v1/health'},
+      {url:'https://peer05.kcp-protocol.org',name:'KCP Public Peer 05',health_url:'https://peer05.kcp-protocol.org/kcp/v1/health'},
+      {url:'https://peer06.kcp-protocol.org',name:'KCP Public Peer 06',health_url:'https://peer06.kcp-protocol.org/kcp/v1/health'},
+      {url:'https://peer07.kcp-protocol.org',name:'KCP Public Peer 07',health_url:'https://peer07.kcp-protocol.org/kcp/v1/health'},
+      {url:'https://peer08.kcp-protocol.org',name:'KCP Public Peer 08',health_url:'https://peer08.kcp-protocol.org/kcp/v1/health'}
+    ];
+  }
+}
+
+// ─── Renderizar cards ───────────────────────────────────────
+function renderCards(cachedPeers) {
+  const grid = document.getElementById('peer-grid');
+  const list = cachedPeers || peersData;
+  grid.innerHTML = list.map((peer, i) => {
+    const name = peer.name || peer.url.replace('https://','').split('.')[0];
+    const isCached = cachedPeers && cachedPeers[i] && cachedPeers[i]._online !== undefined;
+    let statusHtml, metaHtml;
+    if (isCached) {
+      const p = cachedPeers[i];
+      const online = p._online;
+      statusHtml = `<div class="dot ${online?'green':'red'}"></div><span style="color:${online?'var(--green)':'var(--red)'}">● ${online?'Online':'Offline'}${p._latency?' — '+p._latency+'ms':''}</span>`;
+      metaHtml = p._meta || '<div class="peer-meta-item"><span>Status</span>Cache</div>';
+    } else {
+      statusHtml = '<div class="dot gray"></div><span style="color:var(--text-3)">—</span>';
+      metaHtml = '<div class="peer-meta-item"><span>Artefatos</span>—</div><div class="peer-meta-item"><span>Peers</span>—</div><div class="peer-meta-item"><span>Versão</span>—</div><div class="peer-meta-item"><span>Latência</span>—</div>';
+    }
+    return `<div class="peer-card${isCached?(cachedPeers[i]._online?' online':' offline'):' checking'}" id="card-${i}">
+      <div class="peer-name">${name}</div>
+      <div class="peer-url">${peer.url}</div>
+      <div class="peer-status" id="s-${i}">${statusHtml}</div>
+      <div class="peer-meta" id="m-${i}">${metaHtml}</div>
+      <div style="margin-top:.75rem"><a href="${peer.health_url||peer.url+'/kcp/v1/health'}" target="_blank" style="font-size:.7rem;color:var(--blue)">Health ↗</a></div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Aplicar banner do cache ────────────────────────────────
+function applyBanner(totals) {
+  if (!totals) return;
+  const banner = document.getElementById('global-banner');
+  const dot = document.getElementById('global-dot');
+  const msg = document.getElementById('global-msg');
+  if (totals.online === totals.total) {
+    banner.className = 'status-banner ok'; dot.className = 'pulse ani'; dot.style.background = ''; dot.style.boxShadow = '';
+    msg.textContent = `Todos os sistemas operacionais — ${totals.online}/${totals.total} peers online`;
+  } else if (totals.online > 0) {
+    banner.className = 'status-banner degraded'; dot.className = 'pulse amber'; dot.style.background = ''; dot.style.boxShadow = '';
+    msg.textContent = `Degradado — ${totals.online}/${totals.total} peers online`;
+  } else {
+    banner.className = 'status-banner down'; dot.className = 'pulse red'; dot.style.background = ''; dot.style.boxShadow = '';
+    msg.textContent = 'Todos os peers offline';
+  }
+}
+
+// ─── Verificar um peer ──────────────────────────────────────
+async function checkPeer(peer, index) {
+  const healthUrl = peer.health_url || peer.url + '/kcp/v1/health';
+  const card = document.getElementById(`card-${index}`);
+  const sEl = document.getElementById(`s-${index}`);
+  const mEl = document.getElementById(`m-${index}`);
+  if (card) card.className = 'peer-card checking';
+  const t0 = performance.now();
+  try {
+    const resp = await fetch(healthUrl, { headers: {'Accept':'application/json'}, signal: AbortSignal.timeout(8000) });
+    const latency = Math.round(performance.now() - t0);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (data.status !== 'ok') throw new Error(`status: ${data.status}`);
+    if (card) card.className = 'peer-card online';
+    if (sEl) sEl.innerHTML = `<div class="dot green"></div><span style="color:var(--green)">● Online — ${latency}ms</span>`;
+    if (mEl) mEl.innerHTML = `<div class="peer-meta-item"><span>Artefatos</span>${data.artifacts ?? '—'}</div><div class="peer-meta-item"><span>Peers</span>${data.peers ?? '—'}</div><div class="peer-meta-item"><span>Versão</span>${data.kcp_version ?? '—'}</div><div class="peer-meta-item"><span>Latência</span>${latency}ms</div>`;
+    return { online: true, latency, artifacts: data.artifacts, peers: data.peers, version: data.kcp_version };
+  } catch (e) {
+    const latency = Math.round(performance.now() - t0);
+    if (card) card.className = 'peer-card offline';
+    if (sEl) sEl.innerHTML = `<div class="dot red"></div><span style="color:var(--red)">● Offline</span>`;
+    if (mEl) mEl.innerHTML = `<div class="peer-meta-item"><span>Erro</span>${e.message.slice(0,50)}</div><div class="peer-meta-item"><span>Tempo</span>${latency}ms</div>`;
+    return { online: false, latency, error: e.message };
+  }
+}
+
+// ─── Verificar todos ────────────────────────────────────────
+async function checkAll() {
+  if (isChecking) return;
+  isChecking = true;
+  const banner = document.getElementById('global-banner');
+  const dot = document.getElementById('global-dot');
+  const msg = document.getElementById('global-msg');
+  const btn = document.getElementById('btn-check');
+  banner.className = 'status-banner checking'; dot.className = 'pulse gray ani';
+  msg.textContent = 'Verificando peers...';
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Verificando...'; }
+
+  const results = await Promise.all(peersData.map((peer, i) => checkPeer(peer, i)));
+  const total = results.length;
+  const online = results.filter(r => r.online).length;
+
+  if (online === total) {
+    banner.className = 'status-banner ok'; dot.className = 'pulse ani'; dot.style.background = ''; dot.style.boxShadow = '';
+    msg.textContent = `Todos os sistemas operacionais — ${online}/${total} peers online`;
+  } else if (online > 0) {
+    banner.className = 'status-banner degraded'; dot.className = 'pulse amber'; dot.style.background = ''; dot.style.boxShadow = '';
+    msg.textContent = `Degradado — ${online}/${total} peers online`;
+  } else {
+    banner.className = 'status-banner down'; dot.className = 'pulse red'; dot.style.background = ''; dot.style.boxShadow = '';
+    msg.textContent = 'Todos os peers offline';
+  }
+
+  const now = new Date();
+  const timeStr = now.toLocaleString('pt-BR', { timeZone: 'UTC', hour12: false }) + ' UTC';
+  document.getElementById('last-updated').textContent = `Atualizado: ${timeStr}`;
+  document.getElementById('footer-time').textContent = `Última verificação: ${timeStr}.`;
+
+  const cachedPeers = peersData.map((peer, i) => ({
+    ...peer, _online: results[i].online, _latency: results[i].latency,
+    _meta: document.getElementById(`m-${i}`)?.innerHTML || ''
+  }));
+  saveCache({ peers: cachedPeers, totals: { online, total }, timeStr });
+
+  if (btn) { btn.disabled = false; btn.textContent = '↻ Verificar agora'; }
+  isChecking = false;
+}
+
+function toggleAutoRefresh() {
+  if (document.getElementById('auto-refresh').checked) startAutoRefresh();
+  else stopAutoRefresh();
+}
+function startAutoRefresh() { stopAutoRefresh(); autoRefreshTimer = setInterval(checkAll, 30000); }
+function stopAutoRefresh() { if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; } }
+
+(async function init() {
+  await loadPeers();
+  const cached = loadCache();
+  if (cached && cached.peers) { renderCards(cached.peers); applyBanner(cached.totals); if (cached.timeStr) document.getElementById('last-updated').textContent = `Cache: ${cached.timeStr}`; }
+  else renderCards();
+  checkAll();
+  startAutoRefresh();
+})();
+</script>
 </body>
 </html>
