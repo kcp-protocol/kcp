@@ -51,3 +51,6 @@ serviceaccount.json
 .aws/credentials
 .gcp/
 gcloud-service-key.json
+
+# Rust build artifacts
+sdk/rust/target/
