@@ -329,7 +329,8 @@ expired knowledge are filtered out (see §3.3).
       "summary": "string",
       "created_at": "ISO 8601",
       "relevance": 0.94,
-      "preview": "string (first 200 chars)"
+      "preview": "string (first 200 chars)",
+      "scores": {"keyword": 0.8, "semantic": 0.4, "fused": 0.6}
     }
   ],
   "total": 42,
@@ -337,12 +338,62 @@ expired knowledge are filtered out (see §3.3).
 }
 ```
 
-### 6.3 Semantic Search (Optional)
+`relevance` is the ranking score (BM25-derived, cosine, or fused). `scores` is
+optional and only present when the backend can break the score down (currently
+for `semantic` and `hybrid` modes).
 
-If `embeddings` are provided in the payload:
-1. Client generates embedding for search query
-2. Server performs vector similarity search
-3. Results ranked by cosine similarity
+### 6.3 Discovery Modes (Keyword, Semantic, Hybrid)
+
+The reference implementation (Python SDK) exposes three discovery modes on the
+node and the query API. Keyword search (FTS5 + BM25) remains the **default** and
+requires zero extra dependencies; semantic discovery is **opt-in**:
+
+```python
+node = KCPNode(
+    user_id="alice@acme.com",
+    search_backend="sqlite-vss",               # or "fts5" (default)
+    embedding_model="ollama:nomic-embed-text",  # real embeddings; "hash" = offline plumbing
+)
+
+node.search("rate limiting")                            # mode="keyword" (default)
+node.search("rate limiting", mode="semantic")            # cosine similarity
+node.search("rate limiting", mode="hybrid", alpha=0.5)   # BM25 + cosine
+```
+
+| Mode | Ranking | Notes |
+|------|---------|-------|
+| `keyword` | FTS5 / BM25 | Default. Equivalent to `q=` in §6.1. |
+| `semantic` | cosine similarity | Requires `search_backend` + `embedding_model`; hits with cosine ≤ 0 are not results. |
+| `hybrid` | `alpha·BM25 + (1-alpha)·cosine` | Each candidate pool is min-max normalized before fusion; `alpha=1` is keyword-only, `alpha=0` is semantic-only. |
+
+Embeddings:
+
+1. Generated at publish time (title + summary + tags + readable content; encrypted
+   payloads are not embedded) and lazily backfilled for artifacts that predate the
+   index (including artifacts received via sync).
+2. Stored locally in `kcp_embeddings(artifact_id, model, dim, vector)` as
+   little-endian float32, alongside the other tables in the same SQLite file — no
+   extra service is required for the local mode.
+3. Compared with exact cosine similarity computed on the SDK side, so the schema
+   stays portable (plain `sqlite3`, `sql.js`, and `sqlite-vss` when available).
+
+Providers: local Ollama (`ollama:MODEL`), OpenAI-compatible HTTP API
+(`OPENAI_API_KEY`), or any injected `callable(text) -> list[float]`. The offline
+`hash` provider (default) is deterministic and dependency-free but carries **no
+semantic knowledge** — it exercises the vector plumbing, it does not understand
+synonyms.
+
+Backends: `sqlite-vss` (aliases `sqlite`, `local`, `vector`, `auto`) is the local
+backend. The native extension is optional; when it is absent (or fails its probe)
+the implementation falls back to a pure-Python exact scan and reports the reason
+via `semantic_status()["index"]["fallback_reason"]` — never silently. Server
+backends (`qdrant`, `pgvector`, `chroma`) are roadmap items and are rejected with
+an explicit `NotImplementedError`.
+
+Interoperability note: server implementations that receive `embeddings` in the
+payload (§3.1) SHOULD honor them for `mode=semantic`; clients that cannot generate
+embeddings keep using `keyword` mode unchanged. Embedding model identity is part of
+the index key (`kcp_embeddings.model`), so vectors from different models never mix.
 
 ---
 

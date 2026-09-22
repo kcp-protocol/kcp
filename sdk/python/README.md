@@ -88,6 +88,66 @@ kcp sync https://colleague.trycloudflare.com
 kcp stats
 ```
 
+### Semantic & Hybrid Search (opt-in)
+
+By default the SDK is **FTS5/BM25 only** (zero dependencies). Semantic search is
+opt-in through `search_backend` + `embedding_model`:
+
+```python
+from kcp import KCPNode
+
+# Local vector index + real embeddings from a local Ollama daemon
+node = KCPNode(
+    user_id="alice@acme.com",
+    search_backend="sqlite-vss",              # local vector index (default: "fts5")
+    embedding_model="ollama:nomic-embed-text", # or "openai:text-embedding-3-small"
+)
+
+node.publish(title="Throttling strategies", content="Token bucket …", tags=["api"])
+
+node.search("rate limiting")                        # keyword (default, unchanged)
+node.search("rate limiting", mode="semantic")       # cosine similarity  → finds "Throttling"
+node.search("rate limiting", mode="hybrid", alpha=0.5)  # BM25 + cosine (alpha = BM25 weight)
+```
+
+Embedding providers:
+
+| `embedding_model` | Network | Semantics | Notes |
+|-------------------|---------|-----------|-------|
+| `"hash"` (default) | ✗ | ✗ | Deterministic hashing-trick bag-of-words. **Plumbing only** — validates the vector path, index and fusion; it will *not* match synonyms. |
+| `"ollama:nomic-embed-text"` | localhost | ✓ | Any model pulled into a local [Ollama](https://ollama.com) daemon. |
+| `"openai:text-embedding-3-small"` | HTTPS | ✓ | Needs `OPENAI_API_KEY` in the environment. |
+| `callable(text) -> list[float]` | – | ✓ | Inject your own embedder (domain model, test double, …). |
+
+**What is "real semantics" and what is not:** only `ollama`, `openai` and an
+injected callable actually model meaning — `rate limiting` can then match
+`throttling strategies`. The default `hash` provider is deterministic offline
+*plumbing*: it matches lexical overlap through the vector path (useful to test
+the pipeline and to run air-gapped), and calling it "semantic search" would be
+misleading. `node.semantic_status()` reports `embedding.semantic` so callers can
+tell the two apart.
+
+Storage: vectors live in the same SQLite file, in
+`kcp_embeddings(artifact_id, model, dim, vector BLOB /* float32 LE */)`, compared
+with exact cosine similarity computed in pure Python (no numpy).
+
+`search_backend="sqlite-vss"` (aliases: `sqlite_vss`, `sqlite`, `local`,
+`vector`, `auto`) uses the optional native `sqlite-vss` extension when it can be
+loaded and passes a round-trip probe; otherwise it **falls back explicitly** to
+the pure-Python exact scan and records why in
+`node.semantic_status()["index"]["fallback_reason"]` (also logged). It never
+degrades silently. Install the extra with `pip install "kcp-protocol[semantic]"`.
+Server-side backends proposed in [issue #1](https://github.com/kcp-protocol/kcp/issues/1)
+(`qdrant`, `pgvector`, `chroma`) are **not** implemented — they raise
+`NotImplementedError` rather than pretending to work.
+
+CLI equivalents:
+
+```bash
+kcp search "rate limiting" --mode hybrid --alpha 0.5
+KCP_SEARCH_BACKEND=sqlite-vss KCP_EMBEDDING_MODEL=ollama:nomic-embed-text kcp reindex
+```
+
 ### Corporate Hub
 
 ```python
@@ -118,6 +178,8 @@ node.publish(...)  # Goes to hub, not local storage
 |--------|-------------|
 | `kcp.node` | Embedded KCP node (main entry point) |
 | `kcp.store` | SQLite storage backend |
+| `kcp.embeddings` | Embedding providers (offline `hash`, Ollama, OpenAI, custom callable) |
+| `kcp.vector_index` | Local vector index + pure-Python cosine search |
 | `kcp.hub` | HTTP client for corporate hubs |
 | `kcp.crypto` | Ed25519 signing + SHA-256 hashing |
 | `kcp.models` | Data models (KnowledgeArtifact, Lineage, ACL) |

@@ -50,6 +50,12 @@ server = [
 hub = [
     "httpx>=0.25",
 ]
+# Optional: native ANN acceleration for the local vector index (issue #1).
+# Without it, semantic search falls back to an exact pure-Python cosine scan —
+# the SDK never requires this to work.
+semantic = [
+    "sqlite-vss>=0.1.2",
+]
 all = [
     "fastapi>=0.104",
     "uvicorn>=0.24",

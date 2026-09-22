@@ -28,6 +28,7 @@ from .models import (
     is_expired,
 )
 from .content_store import ContentStore
+from .vector_index import DEFAULT_VECTOR_BACKEND, VectorIndex
 
 
 # ─── Schema ────────────────────────────────────────────────────
@@ -130,6 +131,20 @@ CREATE TABLE IF NOT EXISTS kcp_replication (
 );
 
 CREATE INDEX IF NOT EXISTS idx_replication_artifact ON kcp_replication(artifact_id);
+
+-- Vector index for semantic search (issue #1). Vectors are little-endian
+-- float32 blobs; similarity (cosine) is computed by the SDK, not by SQL, so the
+-- schema stays portable (sql.js / sqlite-vss / plain sqlite3).
+CREATE TABLE IF NOT EXISTS kcp_embeddings (
+    artifact_id TEXT NOT NULL,
+    model       TEXT NOT NULL,
+    dim         INTEGER NOT NULL,
+    vector      BLOB NOT NULL,
+    created_at  TEXT NOT NULL,
+    PRIMARY KEY (artifact_id, model)
+);
+
+CREATE INDEX IF NOT EXISTS idx_embeddings_model ON kcp_embeddings(model);
 """
 
 FTS_SQL = """
@@ -149,6 +164,22 @@ ALTER TABLE kcp_fts ADD COLUMN content_text;
 """
 
 
+def _normalize_scores(scores: dict) -> dict:
+    """Min-max normalize a ``{id: score}`` map to ``[0, 1]`` (used by hybrid fusion).
+
+    A degenerate pool (every score identical) normalizes to 1.0 when the score is
+    positive and 0.0 when it is zero, which keeps the BM25 and cosine components
+    comparable without inventing a spread that does not exist.
+    """
+    if not scores:
+        return {}
+    values = list(scores.values())
+    low, high = min(values), max(values)
+    if high - low <= 1e-12:
+        return {key: (1.0 if value > 0 else 0.0) for key, value in scores.items()}
+    return {key: (value - low) / (high - low) for key, value in scores.items()}
+
+
 class LocalStore:
     """
     SQLite-based local storage for KCP artifacts.
@@ -157,12 +188,15 @@ class LocalStore:
     Compatible with sql.js for browser-based viewing.
     """
 
-    def __init__(self, db_path: str = "~/.kcp/kcp.db"):
+    def __init__(self, db_path: str = "~/.kcp/kcp.db", vector_backend: str = DEFAULT_VECTOR_BACKEND):
         self.db_path = Path(db_path).expanduser()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn: Optional[sqlite3.Connection] = None
+        # Vector backend requested for the semantic index (see kcp.vector_index)
+        self.vector_backend = vector_backend
         # Filesystem content store — sibling dir of the .db file
         self.content_store = ContentStore(self.db_path.parent)
+        self.vector_index: Optional[VectorIndex] = None
         self._init_db()
 
     def _init_db(self):
@@ -191,6 +225,8 @@ class LocalStore:
             except sqlite3.OperationalError:
                 pass
         conn.commit()
+        # Vector index (semantic search) — shares this SQLite connection
+        self.vector_index = VectorIndex(conn, backend=self.vector_backend)
         # One-time migration: move BLOBs from kcp_content → filesystem
         self._migrate_blobs_to_filesystem(conn)
 
@@ -508,6 +544,11 @@ class LocalStore:
         )
         if result.rowcount > 0:
             self._audit(user_id, "delete", artifact_id)
+            # Semantic index must not keep ranking artifacts that no longer exist.
+            try:
+                self._index().drop(artifact_id)
+            except sqlite3.Error:  # pragma: no cover — index cleanup is best effort
+                pass
             conn.commit()
             return True
         return False
@@ -702,6 +743,208 @@ class LocalStore:
             total=total,
             query_time_ms=int(elapsed),
         )
+
+    # ─── Semantic search (vector index) ────────────────────
+
+    def _index(self) -> VectorIndex:
+        """Return the vector index, creating it on demand for stores built pre-feature."""
+        if self.vector_index is None:
+            self.vector_index = VectorIndex(self._get_conn(), backend=self.vector_backend)
+        return self.vector_index
+
+    def index_embedding(self, artifact_id: str, vector, model: str = "hash") -> None:
+        """Store (or replace) the embedding of ``artifact_id`` for ``model``."""
+        self._index().add(artifact_id, vector, model)
+        self._audit("", "embedding:index", artifact_id)
+        self._get_conn().commit()
+
+    def get_embedding(self, artifact_id: str, model: str = "hash") -> Optional[list[float]]:
+        """Return the stored embedding for ``(artifact_id, model)``, if any."""
+        return self._index().get(artifact_id, model)
+
+    def drop_embedding(self, artifact_id: str, model: Optional[str] = None) -> int:
+        """Remove embeddings for an artifact (all models unless ``model`` is given)."""
+        return self._index().drop(artifact_id, model)
+
+    def embedded_ids(self, model: str = "hash") -> set[str]:
+        """Set of artifact IDs already embedded with ``model``."""
+        return self._index().indexed_ids(model)
+
+    def embedding_stats(self) -> dict:
+        """Vector index status (backend, fallback reason, counts per model)."""
+        return self._index().status()
+
+    def semantic_search(
+        self,
+        vector,
+        model: str = "hash",
+        limit: int = 20,
+        offset: int = 0,
+        tenant_id: Optional[str] = None,
+        min_score: float = 0.0,
+        include_superseded: bool = False,
+        include_expired: bool = False,
+        canonical_id: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> SearchResponse:
+        """Rank artifacts by cosine similarity to ``vector`` (every stored vector is scanned).
+
+        Deleted artifacts are excluded; ``relevance`` carries the cosine similarity
+        clamped to ``[0, 1]`` while the raw value stays available in
+        ``SearchResult.scores['semantic']``. Hits scoring ``<= min_score`` are
+        dropped (cosine ``0`` = orthogonal = unrelated, so the offline ``hash``
+        embedder does not return the whole corpus for an unrelated query); pass
+        ``min_score=-1.0`` to keep every indexed artifact.
+
+        Lifecycle filters match the keyword path (issue #4): only ``active``
+        artifacts are ranked by default — pass ``include_superseded=True`` /
+        ``include_expired=True`` (or an explicit ``status``) to widen the set.
+        """
+        conn = self._get_conn()
+        self._sweep_expired(conn)
+        start = datetime.now(timezone.utc)
+
+        hits = self._index().search(vector, model=model, limit=None)
+        ids = [artifact_id for artifact_id, score in hits if score > min_score]
+        rows: dict = {}
+        for chunk_start in range(0, len(ids), 500):
+            chunk = ids[chunk_start : chunk_start + 500]
+            placeholders = ",".join("?" for _ in chunk)
+            sql = f"SELECT a.* FROM kcp_artifacts a WHERE a.deleted_at IS NULL AND a.id IN ({placeholders})"  # noqa: S608 — placeholders are all '?'
+            params: list = list(chunk)
+            if tenant_id:
+                sql += " AND a.tenant_id = ?"
+                params.append(tenant_id)
+            if canonical_id:
+                sql += " AND COALESCE(a.canonical_id, a.id) = ?"
+                params.append(canonical_id)
+            status_conds, status_params = self._status_filters(
+                "a", include_superseded, include_expired, status
+            )
+            for cond in status_conds:
+                sql += f" AND {cond}"
+            params.extend(status_params)
+            for row in conn.execute(sql, params).fetchall():
+                rows[row["id"]] = row
+
+        results: list[SearchResult] = []
+        total = 0
+        for artifact_id, score in hits:
+            if score <= min_score:
+                continue  # orthogonal/opposite vectors are not matches
+            row = rows.get(artifact_id)
+            if row is None:
+                continue  # deleted, or filtered out by tenant
+            total += 1
+            if total <= offset or len(results) >= limit:
+                continue
+            results.append(
+                SearchResult(
+                    id=row["id"],
+                    title=row["title"],
+                    summary=row["summary"] or "",
+                    created_at=row["created_at"],
+                    relevance=round(max(0.0, min(1.0, score)), 4),
+                    format=row["format"],
+                    status=row["status"] or "active",
+                    canonical_id=row["canonical_id"] or "",
+                    scores={"semantic": round(score, 6)},
+                )
+            )
+
+        elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+        return SearchResponse(results=results, total=total, query_time_ms=int(elapsed))
+
+    def hybrid_search(
+        self,
+        query: str,
+        vector,
+        model: str = "hash",
+        alpha: float = 0.5,
+        limit: int = 20,
+        offset: int = 0,
+        tenant_id: Optional[str] = None,
+        include_superseded: bool = False,
+        include_expired: bool = False,
+        canonical_id: Optional[str] = None,
+    ) -> SearchResponse:
+        """Fuse BM25 (FTS5) and cosine similarity into a single ranking.
+
+        ``alpha`` is the BM25 weight (``0.0`` = pure semantic, ``1.0`` = pure keyword).
+        Each candidate pool is min-max normalized before fusion so that the two very
+        different score scales cannot dominate each other (a tie in a degenerate pool
+        normalizes to 1.0 when the score is positive). Components are exposed per
+        result in ``SearchResult.scores`` (``keyword``, ``semantic``, ``fused``).
+
+        Both pools honour the lifecycle filters (issue #4): ``active`` only by
+        default, widened by ``include_superseded`` / ``include_expired``.
+        """
+        if not 0.0 <= alpha <= 1.0:
+            raise ValueError(f"alpha must be within [0, 1], got {alpha}")
+        start = datetime.now(timezone.utc)
+        pool = max((limit + offset) * 5, 50)
+
+        keyword = self.search(
+            query,
+            tenant_id=tenant_id,
+            limit=pool,
+            offset=0,
+            include_superseded=include_superseded,
+            include_expired=include_expired,
+            canonical_id=canonical_id,
+        )
+        semantic = self.semantic_search(
+            vector,
+            model=model,
+            limit=pool,
+            tenant_id=tenant_id,
+            offset=0,
+            include_superseded=include_superseded,
+            include_expired=include_expired,
+            canonical_id=canonical_id,
+        )
+
+        keyword_scores = _normalize_scores({r.id: r.relevance for r in keyword.results})
+        semantic_scores = _normalize_scores({r.id: r.relevance for r in semantic.results})
+
+        merged: dict = {}
+        for result in keyword.results:
+            merged[result.id] = {"result": result, "keyword": keyword_scores.get(result.id, 0.0), "semantic": 0.0}
+        for result in semantic.results:
+            entry = merged.setdefault(result.id, {"result": result, "keyword": 0.0, "semantic": 0.0})
+            entry["semantic"] = semantic_scores.get(result.id, 0.0)
+
+        for entry in merged.values():
+            entry["fused"] = alpha * entry["keyword"] + (1.0 - alpha) * entry["semantic"]
+
+        # A fused score of 0 means the artifact matched neither side at the chosen
+        # alpha (e.g. a semantic-only hit at alpha=1.0) — not a result.
+        ordered = sorted(
+            (entry for entry in merged.values() if entry["fused"] > 0),
+            key=lambda entry: (-entry["fused"], entry["result"].id),
+        )
+        page = ordered[offset : offset + limit]
+        results = [
+            SearchResult(
+                id=entry["result"].id,
+                title=entry["result"].title,
+                summary=entry["result"].summary,
+                created_at=entry["result"].created_at,
+                relevance=round(entry["fused"], 4),
+                format=entry["result"].format,
+                preview=entry["result"].preview,
+                status=getattr(entry["result"], "status", "active"),
+                canonical_id=getattr(entry["result"], "canonical_id", ""),
+                scores={
+                    "keyword": round(entry["keyword"], 6),
+                    "semantic": round(entry["semantic"], 6),
+                    "fused": round(entry["fused"], 6),
+                },
+            )
+            for entry in page
+        ]
+        elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+        return SearchResponse(results=results, total=len(ordered), query_time_ms=int(elapsed))
 
     # ─── Lineage ───────────────────────────────────────────────
 
@@ -1054,6 +1297,7 @@ class LocalStore:
             "db_size_bytes": db_size,
             "db_size_human": self._human_size(db_size),
             "db_path": str(self.db_path),
+            "embeddings": self._index().count() if self.vector_index else 0,
             "filesystem": {
                 "files": fs_stats["total_files"],
                 "size_bytes": fs_stats["total_bytes"],

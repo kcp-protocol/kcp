@@ -10,6 +10,11 @@ Quick start (embedded — no server needed):
     atom = node.publish("My Analysis", content="...", format="markdown", tags=["data"])
     results = node.search("analysis")
 
+Semantic/hybrid search (opt-in, local vector index):
+    node = KCPNode(user_id="alice@acme.com", search_backend="sqlite-vss",
+                   embedding_model="ollama:nomic-embed-text")  # or "hash" (offline)
+    results = node.search("rate limiting", mode="semantic")   # or mode="hybrid"
+
 With HTTP server (for P2P sharing):
     node = KCPNode(user_id="alice@acme.com")
     node.serve(port=8800)  # Opens Web UI at http://localhost:8800/ui
@@ -27,6 +32,17 @@ from .models import KnowledgeArtifact, Lineage, ACL, SearchResult, SearchRespons
 from .crypto import generate_keypair, sign_artifact, verify_artifact, hash_content
 from .store import LocalStore
 from .node import KCPNode
+from .vector_index import VectorIndex, VectorIndexError
+from .embeddings import (
+    BaseEmbeddingProvider,
+    CallableEmbeddingProvider,
+    EmbeddingError,
+    HashEmbeddingProvider,
+    OllamaEmbeddingProvider,
+    OpenAIEmbeddingProvider,
+    SemanticSearchUnavailableError,
+    resolve_embedding_provider,
+)
 from .hub import HubBackend
 from .client import KCPClient
 from .merkle import MerkleDAG, MerkleProof, verify_proof, LineageVerificationError
@@ -67,6 +83,17 @@ __all__ = [
     "ForkPair",
     "SyncProof",
     "detect_forks",
+    # Semantic search (issue #1)
+    "VectorIndex",
+    "VectorIndexError",
+    "BaseEmbeddingProvider",
+    "CallableEmbeddingProvider",
+    "EmbeddingError",
+    "HashEmbeddingProvider",
+    "OllamaEmbeddingProvider",
+    "OpenAIEmbeddingProvider",
+    "SemanticSearchUnavailableError",
+    "resolve_embedding_provider",
     # Crypto
     "generate_keypair",
     "sign_artifact",
