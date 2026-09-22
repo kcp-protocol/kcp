@@ -536,6 +536,36 @@ class LocalStore:
         chain.reverse()  # Root first
         return chain
 
+    def get_all_records(self) -> list[dict]:
+        """
+        Return lightweight metadata records for every live artifact.
+
+        Used by the lineage graph / CRDT sync layer (RFC KCP-003): each record
+        carries ``id`` + ``derived_from`` so parent/child edges can be rebuilt on
+        the receiving node without transferring content.
+        """
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT id, user_id, tenant_id, title, format, visibility, "
+            "content_hash, signature, derived_from, created_at "
+            "FROM kcp_artifacts WHERE deleted_at IS NULL"
+        ).fetchall()
+        return [
+            {
+                "id": r["id"],
+                "user_id": r["user_id"],
+                "tenant_id": r["tenant_id"],
+                "title": r["title"],
+                "format": r["format"],
+                "visibility": r["visibility"],
+                "content_hash": r["content_hash"],
+                "signature": r["signature"] or "",
+                "derived_from": r["derived_from"],
+                "timestamp": r["created_at"],
+            }
+            for r in rows
+        ]
+
     def get_derivatives(self, artifact_id: str) -> list[dict]:
         """Get all artifacts derived from this one."""
         conn = self._get_conn()

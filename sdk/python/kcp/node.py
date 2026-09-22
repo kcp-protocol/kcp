@@ -32,6 +32,8 @@ from .crypto import (
 )
 from .store import LocalStore
 from .sync_worker import SyncWorker
+from .lineage_graph import LineageGraph, ForkPair, SyncProof
+from .merkle import MerkleProof
 
 logger = logging.getLogger("kcp.node")
 
@@ -209,6 +211,42 @@ class KCPNode:
         """Get all artifacts derived from this one."""
         return self.store.get_derivatives(artifact_id)
 
+    # ─── Lineage graph · forks · Merkle proofs (RFC KCP-003) ───
+
+    def lineage_graph(self) -> LineageGraph:
+        """
+        Snapshot the local artifact set as a CRDT lineage graph (G-Set).
+
+        See RFC KCP-003 — the set is grow-only: artifacts are immutable, so
+        merging two nodes is always union and never mutates existing lineage.
+        """
+        return LineageGraph(self.store.get_all_records())
+
+    def detect_forks(self) -> list[ForkPair]:
+        """
+        Return every fork in the local lineage DAG.
+
+        A fork is a parent (``derived_from``) with two or more children — the
+        case where independent nodes derived artifacts from the same parent.
+        """
+        return self.lineage_graph().detect_forks()
+
+    def verify_lineage(self, leaf_id: str, root_id: str) -> MerkleProof:
+        """
+        Build and locally verify a Merkle lineage proof that ``root_id`` is an
+        ancestor of ``leaf_id``.
+
+        The returned :class:`~kcp.merkle.MerkleProof` is self-contained and
+        verifiable offline via ``proof.verify()`` without trusting this node.
+        Raises :class:`~kcp.merkle.LineageVerificationError` if no provable path
+        exists.
+        """
+        return self.lineage_graph().verify_lineage(leaf_id, root_id)
+
+    def merkle_root_hash(self) -> str:
+        """Digest of the whole local lineage DAG (converges across synced nodes)."""
+        return self.lineage_graph().global_root_hash()
+
     def verify(self, artifact: KnowledgeArtifact, public_key: Optional[bytes] = None) -> bool:
         """Verify artifact signature."""
         key = public_key or self.public_key
@@ -265,6 +303,33 @@ class KCPNode:
             self._sync_worker.stop()
 
     # ─── Peer / Sync ──────────────────────────────────────────
+
+    def sync(self, other: "KCPNode") -> SyncProof:
+        """
+        Merge another node's artifacts into this one (CRDT G-Set union) and
+        report lineage conflicts.
+
+        Returns a :class:`~kcp.lineage_graph.SyncProof` with:
+
+          - ``proof.conflicts`` — fork pairs (artifacts sharing a parent)
+          - ``proof.merged``    — total artifact count after the merge
+
+        Union is idempotent: syncing the same peer twice changes nothing on the
+        second call (``proof.added == 0``) and never drops an artifact.
+        """
+        added = 0
+        for record in other.store.get_all_records():
+            if self.store.import_artifact(record):
+                added += 1
+
+        graph = self.lineage_graph()
+        conflicts = graph.detect_forks()
+        return SyncProof(
+            conflicts=conflicts,
+            merged=graph.size,
+            added=added,
+            root_hash=graph.global_root_hash(),
+        )
 
     def add_peer(self, url: str, name: str = ""):
         """Register a peer node for sync."""
