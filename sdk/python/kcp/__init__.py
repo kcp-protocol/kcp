@@ -29,6 +29,9 @@ from .store import LocalStore
 from .node import KCPNode
 from .hub import HubBackend
 from .client import KCPClient
+from .merkle import MerkleDAG, MerkleProof, verify_proof, LineageVerificationError
+from .crdt import GSet
+from .lineage_graph import LineageGraph, ForkPair, SyncProof, detect_forks
 
 # Identity (optional import - requires mnemonic package)
 try:
@@ -54,6 +57,16 @@ __all__ = [
     "ACL",
     "SearchResult",
     "SearchResponse",
+    # Lineage · Merkle · CRDT (RFC KCP-003)
+    "LineageGraph",
+    "MerkleDAG",
+    "MerkleProof",
+    "verify_proof",
+    "LineageVerificationError",
+    "GSet",
+    "ForkPair",
+    "SyncProof",
+    "detect_forks",
     # Crypto
     "generate_keypair",
     "sign_artifact",
