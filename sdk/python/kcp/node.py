@@ -20,12 +20,19 @@ import logging
 import os
 import json
 import base64
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
-from .models import KnowledgeArtifact, Lineage, ACL, SearchResponse
+from .models import (
+    KnowledgeArtifact,
+    Lineage,
+    ACL,
+    SearchResponse,
+    normalize_expires_at,
+    LIFECYCLE_FIELDS,
+)
 from .crypto import (
     generate_keypair, sign_artifact, verify_artifact, hash_content,
     encrypt_content, decrypt_content, derive_content_key, is_encrypted,
@@ -91,6 +98,11 @@ class KCPNode:
         derived_from: Optional[str] = None,
         source: str = "",
         lineage: Optional[Lineage] = None,
+        ttl_seconds: Optional[int] = None,
+        expires_at: Optional[str] = None,
+        canonical_id: Optional[str] = None,
+        version: Optional[str] = None,
+        status: str = "active",
     ) -> KnowledgeArtifact:
         """
         Publish a knowledge artifact.
@@ -105,12 +117,22 @@ class KCPNode:
             derived_from: Parent artifact ID (lineage tracking)
             source: What generated this (agent name, tool, etc)
             lineage: Detailed provenance info
+            ttl_seconds: Time-to-live in seconds — sets ``expires_at`` to now+TTL
+            expires_at: Explicit ISO 8601 deadline (takes precedence over ttl_seconds)
+            canonical_id: Stable ID shared by all versions of this knowledge
+                item. Defaults to the artifact's own id (standalone artifact).
+            version: Artifact revision number (default "1")
+            status: Initial lifecycle status (usually "active")
 
         Returns:
             Signed, stored KnowledgeArtifact
         """
         if isinstance(content, str):
             content = content.encode("utf-8")
+
+        # Resolve TTL deadline before signing — expires_at is part of the
+        # signed payload (immutable), unlike `status` which is lifecycle state.
+        expires_at = self._resolve_expires_at(ttl_seconds, expires_at)
 
         # content_hash always computed on PLAINTEXT (for integrity verification)
         plaintext_hash = hash_content(content)
@@ -140,7 +162,14 @@ class KCPNode:
             source=source,
             lineage=lineage,
             content_hash=plaintext_hash,  # always hash of plaintext
+            expires_at=expires_at,
+            status=status or "active",
         )
+        # Standalone artifacts are their own canonical id; versions point to the
+        # id of the first artifact in the family (see publish_version).
+        artifact.canonical_id = canonical_id or artifact.id
+        if version:
+            artifact.version = str(version)
 
         # Sign over metadata (includes plaintext hash — tamper-evident)
         artifact.signature = sign_artifact(artifact.to_dict(), self.private_key)
@@ -160,6 +189,97 @@ class KCPNode:
             self.store.enqueue_sync(artifact.id, self.peers)
 
         return artifact
+
+    @staticmethod
+    def _resolve_expires_at(
+        ttl_seconds: Optional[int], expires_at: Optional[str]
+    ) -> Optional[str]:
+        """Resolve a TTL deadline from ``ttl_seconds`` and/or ``expires_at``.
+
+        An explicit ``expires_at`` always wins; otherwise it is computed as
+        ``now + ttl_seconds``. Returns a normalized UTC ISO 8601 string (or None).
+        """
+        if expires_at:
+            return normalize_expires_at(expires_at)
+        if ttl_seconds is not None:
+            return (datetime.now(timezone.utc) + timedelta(seconds=float(ttl_seconds))).isoformat()
+        return None
+
+    def publish_version(
+        self,
+        artifact_id: str,
+        title: Optional[str] = None,
+        content: Optional[bytes | str] = None,
+        format: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        summary: Optional[str] = None,
+        visibility: Optional[str] = None,
+        source: Optional[str] = None,
+        lineage: Optional[Lineage] = None,
+        derived_from: Optional[str] = None,
+        ttl_seconds: Optional[int] = None,
+        expires_at: Optional[str] = None,
+    ) -> KnowledgeArtifact:
+        """
+        Publish a new version of an existing artifact.
+
+        The new artifact gets a fresh ``id`` but keeps the same ``canonical_id``
+        as the artifact it replaces, with ``version`` incremented (max + 1) and
+        ``derived_from`` pointing at the previous version. Every other active
+        version of the canonical id is transitioned to ``superseded``.
+
+        Unspecified metadata is inherited from the previous version; TTL is NOT
+        inherited (a new version starts without expiry unless you pass
+        ``ttl_seconds``/``expires_at``). When ``content`` is omitted, the
+        previous version's content (decrypted, if private) is reused — handy for
+        metadata-only revisions.
+
+        Args:
+            artifact_id: id of the artifact being replaced (any version)
+
+        Returns:
+            The newly published version
+        """
+        previous = self.store.get(artifact_id)
+        if previous is None:
+            raise ValueError(f"Artifact not found: {artifact_id}")
+
+        canonical_id = previous.canonical_id or previous.id
+        next_version = str(self.store.next_version(canonical_id))
+
+        if content is None:
+            content = self.get_content(previous.id) or b""
+
+        new_artifact = self.publish(
+            title=title if title is not None else previous.title,
+            content=content,
+            format=format or previous.format,
+            tags=tags if tags is not None else list(previous.tags),
+            summary=summary if summary is not None else previous.summary,
+            visibility=visibility or previous.visibility,
+            derived_from=derived_from or previous.id,
+            source=source if source is not None else previous.source,
+            lineage=lineage if lineage is not None else previous.lineage,
+            ttl_seconds=ttl_seconds,
+            expires_at=expires_at,
+            canonical_id=canonical_id,
+            version=next_version,
+            status="active",
+        )
+
+        # The previous version(s) are no longer current.
+        self.store.supersede_versions(
+            canonical_id, superseded_by=new_artifact.id, except_id=new_artifact.id
+        )
+        return new_artifact
+
+    def get_current(self, canonical_id: str) -> Optional[KnowledgeArtifact]:
+        """Return the most recent active version of a canonical artifact."""
+        return self.store.get_current(canonical_id)
+
+    def versions(self, canonical_id: str) -> list[KnowledgeArtifact]:
+        """List every version of a canonical artifact, oldest → newest."""
+        return self.store.get_versions(canonical_id)
 
     def get(self, artifact_id: str) -> Optional[KnowledgeArtifact]:
         """Get artifact by ID."""
@@ -191,13 +311,42 @@ class KCPNode:
         """Return True if this node holds the encryption key for the artifact."""
         return bool(self.store.get_config(f"enc_key:{artifact_id}"))
 
-    def search(self, query: str, limit: int = 20) -> SearchResponse:
-        """Search artifacts by text."""
-        return self.store.search(query, tenant_id=None, limit=limit)
+    def search(
+        self,
+        query: str,
+        limit: int = 20,
+        include_superseded: bool = False,
+        include_expired: bool = False,
+        canonical_id: Optional[str] = None,
+    ) -> SearchResponse:
+        """Search artifacts by text.
 
-    def list(self, limit: int = 50, tags: Optional[list[str]] = None) -> list[KnowledgeArtifact]:
-        """List recent artifacts."""
-        return self.store.list_artifacts(limit=limit, tags=tags)
+        Only ``active`` artifacts are returned by default — superseded versions
+        and expired (TTL'd) knowledge are excluded unless explicitly requested.
+        """
+        return self.store.search(
+            query,
+            tenant_id=None,
+            limit=limit,
+            include_superseded=include_superseded,
+            include_expired=include_expired,
+            canonical_id=canonical_id,
+        )
+
+    def list(
+        self,
+        limit: int = 50,
+        tags: Optional[list[str]] = None,
+        include_superseded: bool = False,
+        include_expired: bool = False,
+    ) -> list[KnowledgeArtifact]:
+        """List recent artifacts (active only by default)."""
+        return self.store.list_artifacts(
+            limit=limit,
+            tags=tags,
+            include_superseded=include_superseded,
+            include_expired=include_expired,
+        )
 
     def delete(self, artifact_id: str) -> bool:
         """Soft-delete an artifact."""
@@ -567,19 +716,34 @@ class KCPNode:
             limit: int = 50,
             q: Optional[str] = None,
             tags: Optional[str] = None,
+            include_superseded: bool = False,
+            include_expired: bool = False,
             caller: tuple = Depends(_caller_identity),
         ):
             caller_user, caller_tenant = caller
             tag_list = tags.split(",") if tags else None
             if q:
-                resp = self.search(q, limit=limit)
+                resp = self.search(
+                    q,
+                    limit=limit,
+                    include_superseded=include_superseded,
+                    include_expired=include_expired,
+                )
                 visible = [r for r in resp.results if (a := self.get(r.id)) and _can_read(a, caller_user, caller_tenant)]
                 resp.results = visible
                 resp.total = len(visible)
                 return resp.__dict__
-            artifacts = self.list(limit=limit, tags=tag_list)
+            artifacts = self.list(
+                limit=limit,
+                tags=tag_list,
+                include_superseded=include_superseded,
+                include_expired=include_expired,
+            )
             visible = [a for a in artifacts if _can_read(a, caller_user, caller_tenant)]
-            return {"artifacts": [a.to_dict() for a in visible], "total": len(visible)}
+            return {
+                "artifacts": [a.to_dict(include_lifecycle=True) for a in visible],
+                "total": len(visible),
+            }
 
         @app.get("/kcp/v1/artifacts/{artifact_id}")
         def get_artifact(artifact_id: str, caller: tuple = Depends(_caller_identity)):
@@ -589,7 +753,39 @@ class KCPNode:
                 raise HTTPException(404, "Artifact not found")
             if not _can_read(a, caller_user, caller_tenant):
                 raise HTTPException(403, "Access denied")
-            return a.to_dict()
+            return a.to_dict(include_lifecycle=True)
+
+        @app.get("/kcp/v1/artifacts/{artifact_id}/versions")
+        def get_versions(artifact_id: str, caller: tuple = Depends(_caller_identity)):
+            """List every version of the artifact's canonical family (oldest → newest)."""
+            caller_user, caller_tenant = caller
+            a = self.get(artifact_id)
+            if not a:
+                raise HTTPException(404, "Artifact not found")
+            if not _can_read(a, caller_user, caller_tenant):
+                raise HTTPException(403, "Access denied")
+            canonical_id = a.canonical_id or a.id
+            versions = self.versions(canonical_id)
+            return {
+                "canonical_id": canonical_id,
+                "total": len(versions),
+                "versions": [v.to_dict(include_lifecycle=True) for v in versions],
+            }
+
+        @app.get("/kcp/v1/artifacts/{artifact_id}/current")
+        def get_current_version(artifact_id: str, caller: tuple = Depends(_caller_identity)):
+            """Return the most recent active version of the canonical family."""
+            caller_user, caller_tenant = caller
+            a = self.get(artifact_id)
+            if not a:
+                raise HTTPException(404, "Artifact not found")
+            if not _can_read(a, caller_user, caller_tenant):
+                raise HTTPException(403, "Access denied")
+            canonical_id = a.canonical_id or a.id
+            current = self.get_current(canonical_id)
+            if not current:
+                raise HTTPException(404, "No active version for this canonical artifact")
+            return current.to_dict(include_lifecycle=True)
 
         @app.get("/kcp/v1/artifacts/{artifact_id}/content")
         def get_content(artifact_id: str, caller: tuple = Depends(_caller_identity)):
@@ -638,8 +834,12 @@ class KCPNode:
                 visibility=body.get("visibility", "public"),
                 derived_from=body.get("derived_from"),
                 source=body.get("source", ""),
+                ttl_seconds=body.get("ttl_seconds"),
+                expires_at=body.get("expires_at"),
+                canonical_id=body.get("canonical_id"),
+                version=body.get("artifact_version"),
             )
-            return artifact.to_dict()
+            return artifact.to_dict(include_lifecycle=True)
 
         # Sync endpoints
         @app.get("/kcp/v1/sync/list")
@@ -870,7 +1070,7 @@ class KCPNode:
         if not artifact:
             return None
 
-        export = artifact.to_dict()
+        export = artifact.to_dict(include_lifecycle=True)
         export["_kcp_export"] = {
             "version": "1",
             "exported_by": self.user_id,
@@ -931,7 +1131,11 @@ class KCPNode:
                 try:
                     pub_key = bytes.fromhex(pub_hex)
                     from .crypto import verify_artifact
-                    clean = {k: v for k, v in data.items() if not k.startswith("_")}
+                    clean = {
+                        k: v
+                        for k, v in data.items()
+                        if not k.startswith("_") and k not in LIFECYCLE_FIELDS
+                    }
                     if not verify_artifact(clean, pub_key):
                         return False, "⚠️ Signature verification FAILED. Artifact may be tampered."
                 except Exception as e:

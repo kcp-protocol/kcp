@@ -20,7 +20,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from .models import KnowledgeArtifact, SearchResponse, SearchResult
+from .models import (
+    KnowledgeArtifact,
+    SearchResponse,
+    SearchResult,
+    normalize_expires_at,
+    is_expired,
+)
 from .content_store import ContentStore
 
 
@@ -46,7 +52,11 @@ CREATE TABLE IF NOT EXISTS kcp_artifacts (
     signature TEXT,
     acl TEXT,
     derived_from TEXT,
-    deleted_at TEXT
+    deleted_at TEXT,
+    canonical_id TEXT,
+    expires_at TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    superseded_by TEXT
 );
 
 CREATE TABLE IF NOT EXISTS kcp_content (
@@ -159,6 +169,10 @@ class LocalStore:
         """Initialize database with schema."""
         conn = self._get_conn()
         conn.executescript(SCHEMA_SQL)
+        # Idempotent migration for databases created before issue #4
+        # (TTL / status / versioning). Must run AFTER executescript because the
+        # new indexes reference columns that legacy tables don't have yet.
+        self._migrate_ttl_versioning(conn)
         try:
             # Try to create FTS table fresh
             conn.executescript(FTS_SQL)
@@ -179,6 +193,89 @@ class LocalStore:
         conn.commit()
         # One-time migration: move BLOBs from kcp_content → filesystem
         self._migrate_blobs_to_filesystem(conn)
+
+    def _migrate_ttl_versioning(self, conn: sqlite3.Connection):
+        """
+        Add TTL / status / versioning columns to an existing database.
+
+        Idempotent: a column is only ALTERed in when it is missing, so this is
+        safe to run on every LocalStore init (fresh and legacy DBs alike).
+        Existing rows get ``status='active'`` and ``expires_at=NULL`` — i.e. a
+        legacy artifact behaves exactly as before (never expires, active).
+        ``canonical_id`` is intentionally left NULL for legacy rows and resolved
+        lazily as ``COALESCE(canonical_id, id)`` so that signatures computed
+        before this extension keep verifying.
+        """
+        migrations = (
+            ("kcp_artifacts", "canonical_id", "TEXT"),
+            ("kcp_artifacts", "expires_at", "TEXT"),
+            ("kcp_artifacts", "status", "TEXT NOT NULL DEFAULT 'active'"),
+            ("kcp_artifacts", "superseded_by", "TEXT"),
+        )
+        for table, column, ddl in migrations:
+            cols = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+            if column not in cols:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_artifacts_canonical "
+            "ON kcp_artifacts(canonical_id)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_artifacts_status ON kcp_artifacts(status)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_artifacts_expires "
+            "ON kcp_artifacts(expires_at)"
+        )
+        conn.commit()
+
+    def _sweep_expired(self, conn: Optional[sqlite3.Connection] = None) -> int:
+        """
+        Lazily persist the ``active`` → ``expired`` transition.
+
+        An artifact is *derived* as expired when ``expires_at <= now`` (UTC).
+        Rather than running a background janitor, every read entry point
+        (get/search/list/get_current/versions) calls this sweep first, so the
+        stored ``status`` is authoritative for SQL filters at query time.
+        ``superseded`` is terminal: a superseded artifact is never re-marked
+        expired (precedence: superseded > expired).
+
+        Returns the number of rows transitioned.
+        """
+        conn = conn or self._get_conn()
+        now = datetime.now(timezone.utc).isoformat()
+        cursor = conn.execute(
+            "UPDATE kcp_artifacts SET status = 'expired' "
+            "WHERE status = 'active' AND expires_at IS NOT NULL AND expires_at <= ?",
+            (now,),
+        )
+        # Always commit: Python's sqlite3 opens an implicit transaction on DML
+        # even when 0 rows match, which would otherwise hold a write lock.
+        conn.commit()
+        return cursor.rowcount
+
+    @staticmethod
+    def _status_filters(
+        alias: str,
+        include_superseded: bool,
+        include_expired: bool,
+        status: Optional[str] = None,
+    ) -> tuple[list[str], list]:
+        """Build SQL conditions restricting rows by lifecycle status.
+
+        Default (both flags False) → only ``active`` artifacts are returned.
+        Passing ``status`` explicitly bypasses the boolean flags.
+        """
+        if status:
+            return [f"{alias}.status = ?"], [status]
+        conds: list[str] = []
+        params: list = []
+        if not include_superseded:
+            conds.append(f"{alias}.status != 'superseded'")
+        if not include_expired:
+            conds.append(f"{alias}.status != 'expired'")
+        return conds, params
 
     def _rebuild_fts(self, conn: sqlite3.Connection):
         """Re-index all artifacts into FTS (used after schema migration)."""
@@ -232,6 +329,9 @@ class LocalStore:
         artifact: KnowledgeArtifact,
         content: bytes = b"",
         derived_from: Optional[str] = None,
+        canonical_id: Optional[str] = None,
+        expires_at: Optional[str] = None,
+        status: Optional[str] = None,
     ) -> KnowledgeArtifact:
         """
         Store a knowledge artifact with its content.
@@ -240,11 +340,33 @@ class LocalStore:
             artifact: The artifact metadata
             content: Raw content bytes
             derived_from: ID of parent artifact (for lineage tracking)
+            canonical_id: Stable ID shared by all versions of this artifact
+                (default: the artifact's own id — a standalone artifact)
+            expires_at: ISO 8601 TTL deadline (default: artifact.expires_at)
+            status: Lifecycle status (default: artifact.status)
 
         Returns:
             The stored artifact
         """
         conn = self._get_conn()
+
+        # ── Lifecycle / versioning resolution (issue #4) ──
+        canonical_id = (
+            canonical_id
+            if canonical_id is not None
+            else (getattr(artifact, "canonical_id", "") or artifact.id)
+        )
+        expires_at = normalize_expires_at(
+            expires_at if expires_at is not None else getattr(artifact, "expires_at", None)
+        )
+        status = status or getattr(artifact, "status", "") or "active"
+        # An artifact published with an already-past deadline is born expired.
+        if status == "active" and is_expired(expires_at):
+            status = "expired"
+        # Keep the in-memory object consistent with what we persist
+        artifact.canonical_id = canonical_id
+        artifact.expires_at = expires_at
+        artifact.status = status
 
         # Store content — filesystem primary, SQLite as fallback index
         if content:
@@ -266,8 +388,9 @@ class LocalStore:
             """INSERT OR REPLACE INTO kcp_artifacts
             (id, version, user_id, tenant_id, team, tags, source, created_at,
              format, visibility, title, summary, lineage, content_hash,
-             content_url, signature, acl, derived_from)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             content_url, signature, acl, derived_from,
+             canonical_id, expires_at, status, superseded_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 artifact.id,
                 artifact.version,
@@ -287,6 +410,10 @@ class LocalStore:
                 artifact.signature,
                 json.dumps(artifact.acl.to_dict()) if artifact.acl else None,
                 derived_from,
+                canonical_id,
+                expires_at,
+                status,
+                getattr(artifact, "superseded_by", "") or None,
             ),
         )
 
@@ -314,13 +441,31 @@ class LocalStore:
 
         # Audit
         self._audit(artifact.user_id, "publish", artifact.id)
+        if canonical_id != artifact.id and getattr(artifact, "version", "1") != "1":
+            self._audit(
+                artifact.user_id,
+                "publish_version",
+                artifact.id,
+                details=f"canonical_id={canonical_id} version={artifact.version}",
+            )
 
         conn.commit()
         return artifact
 
-    def get(self, artifact_id: str) -> Optional[KnowledgeArtifact]:
-        """Retrieve artifact metadata by ID."""
+    def get(
+        self,
+        artifact_id: str,
+        include_superseded: bool = True,
+        include_expired: bool = True,
+    ) -> Optional[KnowledgeArtifact]:
+        """Retrieve artifact metadata by ID.
+
+        By default returns the artifact whatever its lifecycle status
+        (``superseded`` / ``expired`` included) — callers that want only
+        current knowledge should use ``get_current()`` or the search defaults.
+        """
         conn = self._get_conn()
+        self._sweep_expired(conn)
         row = conn.execute(
             "SELECT * FROM kcp_artifacts WHERE id = ? AND deleted_at IS NULL",
             (artifact_id,),
@@ -375,12 +520,31 @@ class LocalStore:
         format_filter: Optional[str] = None,
         limit: int = 50,
         offset: int = 0,
+        include_superseded: bool = False,
+        include_expired: bool = False,
+        canonical_id: Optional[str] = None,
+        status: Optional[str] = None,
     ) -> list[KnowledgeArtifact]:
-        """List artifacts with optional filters."""
+        """List artifacts with optional filters.
+
+        Lifecycle defaults mirror search: only ``active`` artifacts are
+        listed unless ``include_superseded`` / ``include_expired`` is set.
+        """
         conn = self._get_conn()
+        self._sweep_expired(conn)
         query = "SELECT * FROM kcp_artifacts WHERE deleted_at IS NULL"
         params: list = []
 
+        conds, cond_params = self._status_filters(
+            "kcp_artifacts", include_superseded, include_expired, status
+        )
+        for cond in conds:
+            query += f" AND {cond}"
+        params.extend(cond_params)
+
+        if canonical_id:
+            query += " AND COALESCE(canonical_id, id) = ?"
+            params.append(canonical_id)
         if tenant_id:
             query += " AND tenant_id = ?"
             params.append(tenant_id)
@@ -407,6 +571,10 @@ class LocalStore:
         tenant_id: Optional[str] = None,
         limit: int = 20,
         offset: int = 0,
+        include_superseded: bool = False,
+        include_expired: bool = False,
+        canonical_id: Optional[str] = None,
+        status: Optional[str] = None,
     ) -> SearchResponse:
         """
         Full-text search across artifacts.
@@ -414,9 +582,20 @@ class LocalStore:
         Uses FTS5 with porter stemmer (stemming) and BM25 ranking.
         Searches: title, summary, tags, source, and full content_text.
         Falls back to LIKE search if FTS5 is unavailable.
+
+        TTL / versioning (issue #4): by default only ``active`` artifacts are
+        returned — superseded versions and expired knowledge are excluded.
+        Pass ``include_superseded=True`` / ``include_expired=True`` (or an
+        explicit ``status``) to widen the result set.
         """
         conn = self._get_conn()
+        self._sweep_expired(conn)
         start = datetime.now(timezone.utc)
+
+        status_conds, status_params = self._status_filters(
+            "a", include_superseded, include_expired, status
+        )
+        status_sql = "".join(f" AND {c}" for c in status_conds)
 
         # Sanitize query for FTS5 — wrap multi-word in quotes to avoid syntax errors
         fts_query = query.strip()
@@ -436,6 +615,12 @@ class LocalStore:
             if tenant_id:
                 sql += " AND a.tenant_id = ?"
                 params.append(tenant_id)
+            if canonical_id:
+                sql += " AND COALESCE(a.canonical_id, a.id) = ?"
+                params.append(canonical_id)
+
+            sql += status_sql
+            params.extend(status_params)
 
             sql += " ORDER BY bm25_score LIMIT ? OFFSET ?"
             params.extend([limit, offset])
@@ -457,6 +642,13 @@ class LocalStore:
             if tenant_id:
                 sql += " AND tenant_id = ?"
                 params.append(tenant_id)
+            if canonical_id:
+                sql += " AND COALESCE(canonical_id, id) = ?"
+                params.append(canonical_id)
+
+            for cond in status_conds:
+                sql += f" AND {cond.replace('a.', '')}"
+            params.extend(status_params)
 
             sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
@@ -478,6 +670,10 @@ class LocalStore:
                     created_at=row["created_at"],
                     relevance=round(relevance, 4),
                     format=row["format"],
+                    status=row["status"] if "status" in row.keys() else "active",
+                    canonical_id=row["canonical_id"]
+                    if "canonical_id" in row.keys()
+                    else "",
                 )
             )
 
@@ -492,6 +688,11 @@ class LocalStore:
             if tenant_id:
                 count_sql += " AND a.tenant_id = ?"
                 count_params.append(tenant_id)
+            if canonical_id:
+                count_sql += " AND COALESCE(a.canonical_id, a.id) = ?"
+                count_params.append(canonical_id)
+            count_sql += status_sql
+            count_params.extend(status_params)
             total = conn.execute(count_sql, count_params).fetchone()["c"]
         except sqlite3.OperationalError:
             total = len(results)
@@ -577,6 +778,108 @@ class LocalStore:
             {"id": r["id"], "title": r["title"], "author": r["user_id"], "created_at": r["created_at"]}
             for r in rows
         ]
+
+    # ─── Versioning & TTL (issue #4) ───────────────────────────
+
+    def resolve_canonical_id(self, artifact_id: str) -> Optional[str]:
+        """Return the canonical id of an artifact (itself if standalone)."""
+        conn = self._get_conn()
+        row = conn.execute(
+            "SELECT COALESCE(canonical_id, id) AS cid FROM kcp_artifacts WHERE id = ?",
+            (artifact_id,),
+        ).fetchone()
+        return row["cid"] if row else None
+
+    def next_version(self, canonical_id: str) -> int:
+        """Next monotonic version number for a canonical artifact (max + 1)."""
+        conn = self._get_conn()
+        rows = conn.execute(
+            "SELECT version FROM kcp_artifacts WHERE COALESCE(canonical_id, id) = ?",
+            (canonical_id,),
+        ).fetchall()
+        highest = 0
+        for row in rows:
+            try:
+                highest = max(highest, int(str(row["version"]).split(".")[0]))
+            except (TypeError, ValueError):
+                continue
+        return highest + 1
+
+    def supersede_versions(
+        self,
+        canonical_id: str,
+        superseded_by: str = "",
+        except_id: str = "",
+    ) -> int:
+        """
+        Mark every active (or expired-but-not-yet-superseded) version of a
+        canonical artifact as ``superseded``.
+
+        Args:
+            canonical_id: stable id shared by the versions
+            superseded_by: id of the new (current) version
+            except_id: id to leave untouched (normally the new version)
+
+        Returns the number of rows transitioned.
+        """
+        conn = self._get_conn()
+        cursor = conn.execute(
+            "UPDATE kcp_artifacts SET status = 'superseded', superseded_by = ? "
+            "WHERE COALESCE(canonical_id, id) = ? AND deleted_at IS NULL "
+            "AND status IN ('active', 'expired') AND id != ?",
+            (superseded_by or None, canonical_id, except_id or ""),
+        )
+        conn.commit()
+        return cursor.rowcount
+
+    def expire_artifact(self, artifact_id: str, expires_at: Optional[str] = None) -> bool:
+        """Force an artifact into ``expired`` status (optionally setting expires_at)."""
+        conn = self._get_conn()
+        if expires_at is not None:
+            conn.execute(
+                "UPDATE kcp_artifacts SET expires_at = ?, status = 'expired' WHERE id = ?",
+                (normalize_expires_at(expires_at), artifact_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE kcp_artifacts SET status = 'expired' WHERE id = ?",
+                (artifact_id,),
+            )
+        conn.commit()
+        return True
+
+    def get_current(self, canonical_id: str) -> Optional[KnowledgeArtifact]:
+        """
+        Return the most recent ACTIVE version of a canonical artifact.
+
+        Active means status='active' after the expiry sweep — a canonical whose
+        only versions are expired/superseded yields ``None`` (use
+        ``get_versions()`` to inspect the whole family).
+        """
+        if not canonical_id:
+            return None
+        conn = self._get_conn()
+        self._sweep_expired(conn)
+        row = conn.execute(
+            "SELECT * FROM kcp_artifacts "
+            "WHERE COALESCE(canonical_id, id) = ? AND deleted_at IS NULL "
+            "AND status = 'active' "
+            "ORDER BY CAST(version AS INTEGER) DESC, created_at DESC LIMIT 1",
+            (canonical_id,),
+        ).fetchone()
+        return self._row_to_artifact(row) if row else None
+
+    def get_versions(self, canonical_id: str) -> list[KnowledgeArtifact]:
+        """All versions of a canonical artifact, oldest → newest (any status)."""
+        conn = self._get_conn()
+        self._sweep_expired(conn)
+        rows = conn.execute(
+            "SELECT * FROM kcp_artifacts "
+            "WHERE COALESCE(canonical_id, id) = ? AND deleted_at IS NULL "
+            "ORDER BY CAST(version AS INTEGER) ASC, created_at ASC",
+            (canonical_id,),
+        ).fetchall()
+        return [self._row_to_artifact(r) for r in rows]
 
     # ─── Peers ─────────────────────────────────────────────────
 
@@ -674,7 +977,7 @@ class LocalStore:
 
         artifact = self._row_to_artifact(row)
         content = self.get_content(artifact.content_hash)
-        result = artifact.to_dict()
+        result = artifact.to_dict(include_lifecycle=True)
 
         # Include derived_from for lineage preservation across nodes
         if row["derived_from"]:

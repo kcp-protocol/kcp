@@ -68,8 +68,11 @@ KCP addresses these gaps by defining:
 | Operation | Method | Endpoint | Description |
 |-----------|--------|----------|-------------|
 | Publish | POST | `/kcp/v1/artifacts` | Submit a knowledge artifact |
-| Search | GET | `/kcp/v1/artifacts?q=...` | Search by keywords/tags |
+| Publish version | POST | `/kcp/v1/artifacts` (`canonical_id`) | Submit a new revision of an artifact |
+| Search | GET | `/kcp/v1/artifacts?q=...` | Search by keywords/tags (active only by default) |
 | Retrieve | GET | `/kcp/v1/artifacts/{id}` | Get artifact metadata |
+| Current version | GET | `/kcp/v1/artifacts/{id}/current` | Latest active revision of a version family |
+| Versions | GET | `/kcp/v1/artifacts/{id}/versions` | All revisions of a version family |
 | Download | GET | `/kcp/v1/artifacts/{id}/content` | Get artifact content |
 | Delete | DELETE | `/kcp/v1/artifacts/{id}` | Soft-delete artifact |
 
@@ -83,6 +86,7 @@ KCP addresses these gaps by defining:
 {
   "id": "uuid-v4",
   "version": "1",
+  "canonical_id": "uuid-v4 (stable across versions)",
   "user_id": "string",
   "tenant_id": "string",
   "team": "string (optional)",
@@ -102,6 +106,8 @@ KCP addresses these gaps by defining:
   "content_url": "uri (ipfs:// | https:// | file://)",
   "content_hash": "sha256 hex",
   "embeddings": [float] (optional, for semantic search),
+  "expires_at": "ISO 8601 UTC deadline (optional — TTL)",
+  "status": "active | superseded | expired",
   "signature": "ed25519 signature",
   "acl": {
     "allowed_tenants": ["string"],
@@ -114,7 +120,14 @@ KCP addresses these gaps by defining:
 ### 3.2 Field Descriptions
 
 - **id:** Unique identifier (UUID v4)
-- **version:** Protocol version (currently "1")
+- **version:** Artifact revision within its canonical family (monotonically
+  increasing integer, serialized as a string; defaults to `"1"`). For payloads
+  written before the versioning extension this also read as the payload schema
+  version, so the semantics stay backward compatible — see §10.2
+- **canonical_id:** Stable identifier shared by **all versions** of the same
+  knowledge item. For a standalone (never-versioned) artifact it equals `id`.
+  `(id, canonical_id)` is the versioning pair: new revision ⇒ new `id`, same
+  `canonical_id`
 - **user_id:** Creator's identifier (email, username, or DID)
 - **tenant_id:** Organization/project identifier
 - **team:** Optional subgroup within tenant
@@ -133,8 +146,90 @@ KCP addresses these gaps by defining:
 - **content_url:** Where content is stored
 - **content_hash:** SHA-256 of content (for integrity)
 - **embeddings:** Vector representation (optional, for semantic search)
+- **expires_at:** Optional ISO 8601 UTC deadline (TTL). Past this instant the
+  artifact is `expired` and excluded from search/listing by default. `null`/
+  absent means the artifact never expires
+- **status:** Lifecycle state — `active` | `superseded` | `expired` (see §3.3).
+  Servers MUST treat this field as mutable lifecycle metadata and MUST NOT
+  include it in the signed payload (see §8.4)
 - **signature:** Ed25519 signature of payload (excluding signature field)
 - **acl:** Fine-grained access control (overrides visibility)
+
+### 3.2.1 Schema versioning note
+
+The `version`, `canonical_id`, `expires_at` and `status` fields extend the
+original v1 schema additively. A payload that omits them is still valid: its
+`canonical_id` is its own `id`, it never expires, and its status is `active`.
+
+---
+
+### 3.3 Artifact Versioning and Expiry (TTL)
+
+Knowledge has a shelf life. KCP models this with a **version family** (all
+revisions of one knowledge item share a `canonical_id`) and an optional
+**deadline** (`expires_at`).
+
+#### 3.3.1 Version family
+
+A new revision of an existing artifact is published with `PUBLISH_VERSION`:
+
+```python
+v2 = node.publish_version(
+    artifact_id="uuid-v1",          # the revision being replaced
+    title="Rate Limiting Strategies v2",
+    content="Updated content...",    # optional — previous content is reused
+)
+
+current = node.get_current(v1.canonical_id)  # uuid-v2
+versions = node.versions(v1.canonical_id)    # [v1 (superseded), v2 (active)]
+```
+
+Rules:
+
+1. The new revision gets a **new `id`**, the **same `canonical_id`** as the
+   revision it replaces, and `version = max(version) + 1`.
+2. The previous revision(s) transition to `superseded`, recording
+   `superseded_by` = new `id`.
+3. Unspecified metadata (title, tags, summary, format, visibility, source,
+   lineage) is inherited from the replaced revision; content is inherited too
+   when omitted (metadata-only revision). **TTL is not inherited** — a new
+   revision starts without a deadline unless `ttl_seconds`/`expires_at` is
+   passed.
+4. `lineage.parent_reports` / `derived_from` SHOULD reference the previous
+   revision, so the version family and the provenance DAG stay aligned.
+
+#### 3.3.2 Expiry (TTL)
+
+`PUBLISH` accepts `ttl_seconds` and/or `expires_at` (explicit `expires_at`
+wins). Deadlines are normalized to UTC ISO 8601 (`...Z` → `...+00:00`) so that
+lexicographic comparison is sound.
+
+`status` is **persisted** and is also **derivable**: an artifact whose
+`expires_at <= now` is `expired`. Implementations MUST resolve the transition
+deterministically; the reference implementation performs a *lazy sweep*
+(`active` → `expired`) on every read entry point (get/search/list/get_current/
+versions), which keeps SQL filters authoritative without a background job.
+Publishing with an already-past deadline produces an artifact that is born
+`expired`.
+
+Status precedence: `superseded` > `expired`. Expiry only applies to `active`
+artifacts; a superseded artifact stays `superseded` even if its deadline has
+passed.
+
+#### 3.3.3 Discovery defaults
+
+`DISCOVER`/`SEARCH` and listing return **`active` artifacts only** by default:
+
+```python
+node.search("rate limiting")                              # active only
+node.search("rate limiting", include_superseded=True)     # + superseded
+node.search("rate limiting", include_expired=True)        # + expired
+node.search("rate limiting", canonical_id="uuid-v1")      # restrict to a family
+```
+
+`get_current(canonical_id)` returns the newest `active` revision, or `null`/
+`None` when every revision of the family is expired or superseded.
+`versions(canonical_id)` returns the whole family regardless of status.
 
 ---
 
@@ -214,8 +309,14 @@ GET /kcp/v1/artifacts?q=<keywords>&tenant_id=<tenant>&team=<team>&tags=<tag1,tag
 - `tenant_id` (optional): Filter by tenant
 - `team` (optional): Filter by team
 - `tags` (optional): Comma-separated tags
+- `canonical_id` (optional): Restrict results to one version family
+- `include_superseded` (optional, default `false`): include superseded revisions
+- `include_expired` (optional, default `false`): include expired (past-TTL) artifacts
 - `from`, `to` (optional): Date range (ISO 8601)
 - `limit`, `offset` (optional): Pagination
+
+By default DISCOVER returns `active` artifacts only — superseded versions and
+expired knowledge are filtered out (see §3.3).
 
 ### 6.2 Response Format
 
@@ -390,6 +491,18 @@ ed25519.verify(bytes.fromhex(payload['signature']),
 
 ---
 
+### 8.4 Signature Scope
+The Ed25519 `signature` covers the canonical JSON serialization of the payload
+(sorted keys, compact separators) excluding the `signature` field itself.
+
+Mutable lifecycle metadata is **explicitly out of scope**: `status` and
+`superseded_by` MUST NOT be included in the signed payload, otherwise a routine
+supersede/expiry transition would invalidate the artifact's own signature.
+Immutably-assigned extension fields (`canonical_id`, `expires_at`) ARE covered
+by the signature, so a tampered TTL is detectable.
+
+---
+
 ## 9. Federation & P2P Sync
 
 ### 9.1 Architecture
@@ -432,9 +545,17 @@ ed25519.verify(bytes.fromhex(payload['signature']),
 
 ### 10.2 Payload Versioning
 
-- Each payload has `"version": "1"` field
-- Future breaking changes increment version (2, 3, etc.)
-- Servers MUST reject unsupported versions with `400 Bad Request`
+- The payload `version` field is the **artifact revision** inside its
+  `canonical_id` family (monotonic, defaults to `"1"`). It was introduced by
+  the versioning extension but is backward compatible with v1 payloads, where
+  `"1"` also meant the payload schema version.
+- Payload **schema** versioning (breaking serialization changes) is signalled by
+  the major version in the URL path (`/kcp/v1/...`).
+- Servers MUST reject unsupported **path** versions with `400 Bad Request`.
+- Additive schema extensions (like `canonical_id`, `expires_at`, `status`) do
+  not require a version bump: receivers that do not know a field MUST ignore it,
+  and an artifact lacking these fields is treated as an active,
+  never-expiring, standalone artifact (§3.2.1).
 
 ---
 
@@ -477,6 +598,8 @@ ed25519.verify(bytes.fromhex(payload['signature']),
 - **Notifications:** Subscribe to new reports matching tags
 - **Analytics:** Usage metrics (most viewed, most cited)
 - **AI-to-AI Discovery:** Agents autonomously discover relevant artifacts
+- **Expiry policies:** tenant-level default TTLs and scheduled revalidation of
+  near-expiry knowledge
 
 ---
 
