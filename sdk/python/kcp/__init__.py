@@ -73,7 +73,7 @@ __all__ = [
     "ACL",
     "SearchResult",
     "SearchResponse",
-    # Lineage · Merkle · CRDT (RFC KCP-003)
+    # Lineage · Merkle · CRDT (RFC KCP-005)
     "LineageGraph",
     "MerkleDAG",
     "MerkleProof",

@@ -639,13 +639,13 @@ class KCPNode:
         """Get all artifacts derived from this one."""
         return self.store.get_derivatives(artifact_id)
 
-    # ─── Lineage graph · forks · Merkle proofs (RFC KCP-003) ───
+    # ─── Lineage graph · forks · Merkle proofs (RFC KCP-005) ───
 
     def lineage_graph(self) -> LineageGraph:
         """
         Snapshot the local artifact set as a CRDT lineage graph (G-Set).
 
-        See RFC KCP-003 — the set is grow-only: artifacts are immutable, so
+        See RFC KCP-005 — the set is grow-only: artifacts are immutable, so
         merging two nodes is always union and never mutates existing lineage.
         """
         return LineageGraph(self.store.get_all_records())

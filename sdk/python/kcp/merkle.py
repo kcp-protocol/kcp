@@ -1,5 +1,5 @@
 """
-KCP Merkle DAG — auditable lineage proofs (RFC KCP-003: Lineage Conflict Resolution)
+KCP Merkle DAG — auditable lineage proofs (RFC KCP-005: Lineage Conflict Resolution)
 
 Every artifact is a node in a Merkle DAG. Edges go parent → child
 (`derived_from` / `parent_id`). Each node commits to:
