@@ -1,8 +1,8 @@
 """
 KCP CRDT primitives — Grow-Only Set (G-Set) for artifact federation
-(RFC KCP-003: Lineage Conflict Resolution)
+(RFC KCP-005: Lineage Conflict Resolution)
 
-KCP artifacts are **immutable once published** (see RFC KCP-003 non-goals and
+KCP artifacts are **immutable once published** (see RFC KCP-005 non-goals and
 RFC KCP-001 §7). Therefore the set of artifacts known by a node is a natural
 **Grow-Only Set (G-Set)** CRDT:
 

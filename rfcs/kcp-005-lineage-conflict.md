@@ -1,6 +1,6 @@
-# RFC KCP-003: Lineage Conflict Resolution via Merkle DAG + CRDTs
+# RFC KCP-005: Lineage Conflict Resolution via Merkle DAG + CRDTs
 
-**RFC Number:** KCP-003
+**RFC Number:** KCP-005
 **Title:** Lineage Conflict Resolution — Fork Detection, Merkle Lineage Proofs, and G-Set CRDT Sync
 **Status:** Draft
 **Date:** September 2026
@@ -10,23 +10,20 @@
 
 ---
 
-> ## ⚠️ RFC numbering collision (must be resolved)
+> ## 📌 RFC numbering (resolved 2026-09-22)
 >
-> This document is **KCP-003 by issue numbering**, but a *different* RFC already
-> occupies that slot: [`rfcs/kcp-003-sync-storage.md`](kcp-003-sync-storage.md)
-> ("Adaptive Sync Engine + Hybrid Storage Architecture").
+> This document was opened as *KCP-003 by issue numbering*, but the KCP-003 slot was
+> already taken by [`rfcs/kcp-003-sync-storage.md`](kcp-003-sync-storage.md)
+> ("Adaptive Sync Engine + Hybrid Storage Architecture", the older, published RFC).
 >
-> This RFC does **not** modify, rename, or supersede that file. Instead:
+> **Resolution:** this RFC is filed as **KCP-005** — the next free number after
+> KCP-004 "Network Deployment Models" — and the file renamed to
+> `rfcs/kcp-005-lineage-conflict.md`. KCP-003 (sync/storage) is unchanged.
 >
-> - It is filed as `rfcs/kcp-003-lineage-conflict.md` (distinct filename, per issue #2).
-> - **Recommendation:** renumber the sync/storage RFC from **KCP-003 → KCP-005**
->   (the next free number after KCP-004 "Network Deployment Models"). That
->   document is a storage/sync-engine RFC; this one is a protocol-semantics RFC.
-> - Note that `kcp-003-sync-storage.md` §7 currently lists *"No CRDT / conflict
->   resolution"* as a **non-goal**. This RFC makes conflict resolution an explicit,
->   in-scope protocol concern (goals §1.2). The two RFCs are complementary:
->   the sync engine moves bytes; this RFC defines what the bytes *mean* when two
->   nodes diverge. The renumbering also removes that apparent contradiction.
+> Note that `kcp-003-sync-storage.md` §7 lists *"No CRDT / conflict resolution"* as a
+> **non-goal**. This RFC makes conflict resolution an explicit, in-scope protocol
+> concern (goals §1.2): the sync engine moves bytes, this RFC defines what the bytes
+> *mean* when two nodes diverge. The two RFCs are complementary.
 
 ---
 
@@ -380,7 +377,7 @@ Not implemented in this RFC's first cut (SDK reference only).
 
 | Criterion (issue #2) | Where |
 |---|---|
-| RFC in `rfcs/kcp-003-lineage-conflict.md` | this file |
+| RFC in `rfcs/kcp-005-lineage-conflict.md` | this file |
 | Fork detection algorithm defined | §4 + `lineage_graph.detect_forks` |
 | Merkle proof structure specified | §5 + `merkle.MerkleProof` |
 | CRDT merge semantics defined | §6 + `crdt.GSet` |
@@ -404,4 +401,4 @@ Not implemented in this RFC's first cut (SDK reference only).
 
 ---
 
-*RFC KCP-003 (lineage-conflict, Draft) — feedback: https://github.com/kcp-protocol/kcp/issues/2*
+*RFC KCP-005 (lineage-conflict, Draft) — feedback: https://github.com/kcp-protocol/kcp/issues/2*

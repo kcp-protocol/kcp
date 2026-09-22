@@ -1,6 +1,6 @@
 """
 KCP Lineage Graph — fork detection + CRDT sync proof
-(RFC KCP-003: Lineage Conflict Resolution)
+(RFC KCP-005: Lineage Conflict Resolution)
 
 Two nodes in a federation can independently derive artifacts from the same
 parent (``derived_from``). When they sync there is no mutation to reconcile —

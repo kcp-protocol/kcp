@@ -1,5 +1,5 @@
 """
-Tests for RFC KCP-003 — Lineage Conflict Resolution (Merkle DAG + G-Set CRDT).
+Tests for RFC KCP-005 — Lineage Conflict Resolution (Merkle DAG + G-Set CRDT).
 
 Covers:
   - Merkle primitives (leaf/node hashing, domain separation)
