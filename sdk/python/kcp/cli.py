@@ -11,7 +11,9 @@ Usage:
     kcp identity export               # Export identity backup
     kcp identity import               # Import identity from backup
     kcp publish --title "..." FILE    # Publish a file as knowledge artifact
-    kcp search "query"                # Search artifacts
+    kcp publish --ttl 3600 FILE       # Publish with a 1h TTL
+    kcp versions CANONICAL_ID         # List all versions of an artifact
+    kcp search "query"                # Search artifacts (active only)
     kcp list                          # List recent artifacts
     kcp get ARTIFACT_ID               # Show artifact details
     kcp lineage ARTIFACT_ID           # Show lineage chain
@@ -56,6 +58,8 @@ def main():
         cmd_get(rest)
     elif cmd == "lineage":
         cmd_lineage(rest)
+    elif cmd == "versions":
+        cmd_versions(rest)
     elif cmd == "serve":
         cmd_serve(rest)
     elif cmd == "peer":
@@ -150,40 +154,54 @@ def cmd_init(args):
 
 
 def cmd_publish(args):
-    """Publish a file as a knowledge artifact."""
+    """Publish a file as a knowledge artifact (or a new version of one)."""
     title = ""
     tags = []
     summary = ""
     derived_from = None
     file_path = None
     fmt = None
+    ttl_seconds = None
+    expires_at = None
+    version_of = None
+    explicit_title = None
+    explicit_fmt = None
 
     i = 0
     while i < len(args):
         if args[i] == "--title" and i + 1 < len(args):
-            title = args[i + 1]; i += 2
+            title = args[i + 1]; explicit_title = title; i += 2
         elif args[i] == "--tags" and i + 1 < len(args):
             tags = [t.strip() for t in args[i + 1].split(",")]; i += 2
         elif args[i] == "--summary" and i + 1 < len(args):
             summary = args[i + 1]; i += 2
         elif args[i] == "--format" and i + 1 < len(args):
-            fmt = args[i + 1]; i += 2
+            fmt = args[i + 1]; explicit_fmt = fmt; i += 2
         elif args[i] == "--derived-from" and i + 1 < len(args):
             derived_from = args[i + 1]; i += 2
+        elif args[i] == "--ttl" and i + 1 < len(args):
+            ttl_seconds = float(args[i + 1]); i += 2
+        elif args[i] == "--expires-at" and i + 1 < len(args):
+            expires_at = args[i + 1]; i += 2
+        elif args[i] == "--version-of" and i + 1 < len(args):
+            version_of = args[i + 1]; i += 2
         elif args[i] == "-":
             file_path = "-"; i += 1
         else:
             file_path = args[i]; i += 1
 
-    if not file_path:
-        print("Usage: kcp publish [--title TITLE] [--tags a,b] [--format md] FILE")
+    if not file_path and not version_of:
+        print("Usage: kcp publish [--title TITLE] [--tags a,b] [--format md]")
+        print("                   [--ttl SECONDS] [--expires-at ISO8601] FILE")
+        print("       kcp publish --version-of ARTIFACT_ID [--title TITLE] [--ttl SECONDS] [FILE]")
         print("       echo 'content' | kcp publish --title 'My Note' -")
         sys.exit(1)
 
     # Read content
+    content = None
     if file_path == "-":
         content = sys.stdin.buffer.read()
-    else:
+    elif file_path:
         p = Path(file_path)
         if not p.exists():
             print(f"File not found: {file_path}")
@@ -202,9 +220,32 @@ def cmd_publish(args):
         fmt = "text"
 
     node = _get_node()
+
+    if version_of:
+        try:
+            artifact = node.publish_version(
+                artifact_id=version_of,
+                title=explicit_title,
+                content=content,
+                format=explicit_fmt,
+                tags=tags or None,
+                summary=summary or None,
+                derived_from=derived_from,
+                ttl_seconds=ttl_seconds,
+                expires_at=expires_at,
+            )
+        except ValueError as exc:
+            print(f"❌ {exc}")
+            sys.exit(1)
+        print(f"✅ Published version {artifact.version}: {artifact.id}")
+        print(f"   Canonical: {artifact.canonical_id}")
+        print(f"   Derived from: {derived_from or '(previous version)'}")
+        return
+
     artifact = node.publish(
         title=title, content=content, format=fmt,
         tags=tags, summary=summary, derived_from=derived_from,
+        ttl_seconds=ttl_seconds, expires_at=expires_at,
     )
 
     print(f"✅ Published: {artifact.id}")
@@ -214,29 +255,86 @@ def cmd_publish(args):
     print(f"   Tags:    {', '.join(artifact.tags) if artifact.tags else '(none)'}")
     if derived_from:
         print(f"   Derived: {derived_from}")
+    if artifact.expires_at:
+        print(f"   Expires: {artifact.expires_at}")
 
 
 def cmd_search(args):
-    """Search for artifacts."""
-    if not args:
-        print("Usage: kcp search QUERY")
+    """Search for artifacts (active only unless widened with flags)."""
+    include_superseded = "--include-superseded" in args
+    include_expired = "--include-expired" in args
+    limit = 20
+    words = []
+    i = 0
+    while i < len(args):
+        if args[i] in ("--include-superseded", "--include-expired"):
+            i += 1
+        elif args[i] == "--limit" and i + 1 < len(args):
+            limit = int(args[i + 1]); i += 2
+        else:
+            words.append(args[i]); i += 1
+
+    if not words:
+        print("Usage: kcp search QUERY [--include-superseded] [--include-expired] [--limit N]")
         sys.exit(1)
 
-    query = " ".join(args)
+    query = " ".join(words)
     node = _get_node()
-    results = node.search(query)
+    results = node.search(
+        query,
+        limit=limit,
+        include_superseded=include_superseded,
+        include_expired=include_expired,
+    )
 
     if not results.results:
         print(f"No results for: {query}")
         return
 
-    print(f"Found {results.total} artifacts ({results.query_time_ms}ms):\n")
+    scope = "all statuses" if (include_superseded and include_expired) else (
+        "active + superseded" if include_superseded else (
+            "active + expired" if include_expired else "active only"
+        )
+    )
+    print(f"Found {results.total} artifacts ({results.query_time_ms}ms) — {scope}:\n")
     for r in results.results:
         print(f"  📄 {r.title}")
         print(f"     ID: {r.id}")
         print(f"     {r.summary[:100]}" if r.summary else "")
-        print(f"     Format: {r.format} | Created: {r.created_at[:10]}")
+        print(f"     Format: {r.format} | Created: {r.created_at[:10]} | Status: {r.status}")
         print()
+
+
+def cmd_versions(args):
+    """List all versions of a canonical artifact."""
+    if not args:
+        print("Usage: kcp versions CANONICAL_ID")
+        sys.exit(1)
+
+    node = _get_node()
+    canonical_id = node.store.resolve_canonical_id(args[0]) or args[0]
+    versions = node.versions(canonical_id)
+
+    if not versions:
+        print(f"No versions found for: {canonical_id}")
+        return
+
+    print(f"Versions of {canonical_id} ({len(versions)}):\n")
+    for v in versions:
+        current = " ← current" if v.status == "active" else ""
+        print(f"  v{v.version}  [{v.status}]{current}")
+        print(f"     ID: {v.id}")
+        print(f"     Title: {v.title} | {v.format} | {v.timestamp[:10]}")
+        if v.expires_at:
+            print(f"     Expires: {v.expires_at}")
+        if v.superseded_by:
+            print(f"     Superseded by: {v.superseded_by}")
+        print()
+    current_artifact = node.get_current(canonical_id)
+    if current_artifact:
+        print(f"Current: v{current_artifact.version} ({current_artifact.id})")
+    else:
+        print("Current: (none — no active version)")
 
 
 def cmd_list(args):
@@ -413,7 +511,7 @@ def cmd_keygen(args):
 def cmd_export(args):
     """Export all artifacts as JSON (for backup/migration)."""
     node = _get_node()
-    artifacts = node.list(limit=10000)
+    artifacts = node.list(limit=10000, include_superseded=True, include_expired=True)
     data = [a.to_dict() for a in artifacts]
     output = json.dumps(data, indent=2)
 
@@ -433,10 +531,14 @@ Usage: kcp <command> [options]
 Commands:
   init                          Initialize node (generate keys, create DB)
   publish [--title T] FILE      Publish a file as knowledge artifact
-  search QUERY                  Search artifacts
+  publish --ttl 3600 FILE       Publish with a TTL (seconds) / --expires-at ISO8601
+  publish --version-of ID FILE  Publish a new version of an existing artifact
+  search QUERY                  Search artifacts (active only)
+  search QUERY --include-superseded --include-expired
   list [N]                      List recent artifacts (default: 20)
   get ID                        Show artifact details + content
   lineage ID                    Show lineage chain (root → current)
+  versions CANONICAL_ID         List all versions + lifecycle status
   serve [--port 8800]           Start HTTP server for P2P + Web UI
   peer add URL [NAME]           Add a peer node
   peer list                     List known peers
@@ -454,6 +556,9 @@ Examples:
   kcp init
   kcp publish --title "Auth Guide" --tags "jwt,security" guide.md
   echo "quick note" | kcp publish --title "Note" --format text -
+  kcp publish --ttl 86400 --title "Daily snapshot" report.md
+  kcp publish --version-of $ID --title "Report v2" report-v2.md
+  kcp versions $ID
   kcp search "authentication"
   kcp serve --port 8800
   kcp peer add https://colleague-node.trycloudflare.com

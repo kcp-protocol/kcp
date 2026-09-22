@@ -157,8 +157,11 @@ Table of Contents
    KCP defines five core operations:
 
       PUBLISH   - Submit a new knowledge artifact to a node
+      PUBLISH_VERSION - Submit a new revision of an existing artifact
+                 (same canonical_id, incremented version)
       DISCOVER  - Search for artifacts by keywords, tags, or semantics
       RETRIEVE  - Fetch a specific artifact by identifier or content hash
+      GET_CURRENT - Fetch the latest active revision of a canonical id
       VERIFY    - Validate the integrity and authenticity of an artifact
       REVOKE    - Soft-delete an artifact (preserving lineage references)
 
@@ -197,7 +200,15 @@ Table of Contents
    | content_url        | string   | URI where content is stored      |
    | embeddings         | [float]  | Vector for semantic search       |
    | acl                | object   | Fine-grained access control      |
+   | canonical_id       | string   | Stable id of the version family  |
+   | expires_at         | string   | ISO 8601 UTC TTL deadline        |
+   | status             | string   | active | superseded | expired     |
    +--------------------+----------+----------------------------------+
+
+   An artifact that omits canonical_id, expires_at and status is treated
+   as an active, never-expiring, standalone artifact (canonical_id =
+   id). This keeps payloads produced before the TTL/versioning extension
+   valid without a schema version bump.
 
 4.2.  Identifier Requirements
 
@@ -234,7 +245,8 @@ Table of Contents
    computed as follows:
 
    1. Construct a canonical JSON representation of the artifact,
-      excluding the "signature" field itself.
+      excluding the "signature" field itself and any mutable lifecycle
+      metadata ("status", "superseded_by") — see 4.6.
 
    2. Sort all keys alphabetically at every nesting level.
 
@@ -247,6 +259,42 @@ Table of Contents
 
    Nodes MUST verify signatures upon PUBLISH and MUST reject
    artifacts with invalid signatures with HTTP 401 Unauthorized.
+
+4.6.  Versioning and Expiry
+
+   Knowledge has a shelf life. KCP models mutable knowledge with a
+   version family keyed by "canonical_id" and an optional TTL
+   ("expires_at").
+
+   A new revision of an artifact is published with PUBLISH_VERSION — a
+   PUBLISH operation (Sec. 5.1) carrying the replaced revision's
+   "canonical_id". The new revision:
+
+   o  MUST carry a new "id";
+   o  MUST carry the same "canonical_id" as the revision it replaces;
+   o  MUST carry "version" incremented by one (max(version) + 1);
+   o  SHOULD reference the replaced revision via lineage
+      ("derived_from" / "parent_reports").
+
+   The replaced revision MUST transition to "status = superseded"
+   with "superseded_by" set to the new revision's id.
+
+   "status" is lifecycle metadata and is therefore NOT covered by the
+   signature (4.5). "canonical_id" and "expires_at" are assigned once
+   at PUBLISH and ARE covered by the signature.
+
+   An artifact whose "expires_at" is earlier than the current time is
+   "expired". Implementations MUST derive this transition
+   deterministically: the reference implementation persists it lazily
+   (active -> expired) on every read entry point. DISCOVER and listing
+   MUST exclude superseded and expired artifacts unless the client
+   explicitly asks for them ("include_superseded" / "include_expired").
+
+   Status precedence: superseded > expired.
+
+   A node MUST provide a way to retrieve the current (latest active)
+   revision of a canonical id — GET /kcp/v1/artifacts/{id}/current —
+   and to enumerate the family — GET /kcp/v1/artifacts/{id}/versions.
 
 
 5.  Operations

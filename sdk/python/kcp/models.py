@@ -13,6 +13,45 @@ from uuid import uuid4
 import json
 
 
+def normalize_expires_at(value) -> Optional[str]:
+    """
+    Normalize a TTL deadline to a canonical UTC ISO 8601 string.
+
+    Accepts ``None``, a ``datetime``, or a string (``Z`` suffix tolerated).
+    Naive datetimes are assumed UTC. Normalizing matters because expiry is
+    evaluated with a lexicographic comparison in SQLite: ``...Z`` sorts after
+    ``...+00:00``, so mixed formats would break ``expires_at <= now``.
+    """
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        dt = value
+    else:
+        raw = str(value).strip()
+        if raw[-1:] in ("Z", "z"):
+            raw = raw[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(raw)
+        except ValueError as exc:
+            raise ValueError(
+                f"Invalid expires_at — expected ISO 8601, got {value!r}"
+            ) from exc
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+def is_expired(expires_at, now: Optional[datetime] = None) -> bool:
+    """Return True when a normalized ``expires_at`` is in the past."""
+    normalized = normalize_expires_at(expires_at)
+    if not normalized:
+        return False
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return normalized <= now.astimezone(timezone.utc).isoformat()
+
+
 @dataclass
 class Lineage:
     """Provenance information for a knowledge artifact."""
@@ -43,6 +82,17 @@ class ACL:
             "allowed_users": self.allowed_users,
             "allowed_teams": self.allowed_teams,
         }
+
+
+# Lifecycle statuses for a knowledge artifact (KCP issue #4).
+#   active      → current, discoverable knowledge
+#   superseded  → a newer version of the same canonical artifact exists
+#   expired     → its expires_at (TTL) is in the past
+VALID_STATUSES = ("active", "superseded", "expired")
+
+# Fields that are mutable lifecycle metadata — they change over the life of an
+# artifact (supersede/expire) and are therefore NOT covered by the signature.
+LIFECYCLE_FIELDS = ("status", "superseded_by")
 
 
 @dataclass
@@ -79,8 +129,23 @@ class KnowledgeArtifact:
     signature: str = ""
     acl: Optional[ACL] = None
 
-    def to_dict(self) -> dict:
-        """Convert to KCP payload dict (for JSON serialization)."""
+    # Artifact versioning + lifecycle (KCP issue #4).
+    # canonical_id is stable across all versions of the same knowledge item.
+    canonical_id: str = ""
+    expires_at: Optional[str] = None
+    status: str = "active"
+    superseded_by: str = ""
+
+    def to_dict(self, include_lifecycle: bool = False) -> dict:
+        """
+        Convert to KCP payload dict (for JSON serialization).
+
+        Args:
+            include_lifecycle: also include mutable lifecycle fields
+                (``status``, ``superseded_by``). Defaults to False because this
+                dict is the signed payload — lifecycle transitions (supersede /
+                expiry) must not invalidate an artifact's signature.
+        """
         d = {
             "id": self.id,
             "version": self.version,
@@ -93,6 +158,16 @@ class KnowledgeArtifact:
             "content_hash": self.content_hash,
             "signature": self.signature,
         }
+        # Immutable (signed) extension fields — only when set, so payloads
+        # produced before the TTL/versioning extension keep verifying.
+        if self.canonical_id:
+            d["canonical_id"] = self.canonical_id
+        if self.expires_at:
+            d["expires_at"] = self.expires_at
+        if include_lifecycle:
+            d["status"] = self.status
+            if self.superseded_by:
+                d["superseded_by"] = self.superseded_by
         # Optional fields (only include if set)
         if self.team:
             d["team"] = self.team
@@ -119,6 +194,8 @@ class KnowledgeArtifact:
         """
         d = self.to_dict()
         d.pop("signature", None)
+        for key in LIFECYCLE_FIELDS:
+            d.pop(key, None)
         return json.dumps(d, sort_keys=True, separators=(",", ":"))
 
     @classmethod
@@ -151,6 +228,10 @@ class KnowledgeArtifact:
             embeddings=data.get("embeddings", []),
             signature=data.get("signature", ""),
             acl=acl,
+            canonical_id=data.get("canonical_id", "") or "",
+            expires_at=data.get("expires_at") or None,
+            status=data.get("status", "active") or "active",
+            superseded_by=data.get("superseded_by", "") or "",
         )
 
 
@@ -164,6 +245,8 @@ class SearchResult:
     relevance: float
     format: str
     preview: str = ""
+    status: str = "active"
+    canonical_id: str = ""
 
     @classmethod
     def from_dict(cls, data: dict) -> "SearchResult":
@@ -175,6 +258,8 @@ class SearchResult:
             relevance=data.get("relevance", 0.0),
             format=data.get("format", ""),
             preview=data.get("preview", ""),
+            status=data.get("status", "active"),
+            canonical_id=data.get("canonical_id", ""),
         )
 
 
