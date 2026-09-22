@@ -1,0 +1,352 @@
+{
+  "aes_gcm": [
+    {
+      "artifact_id": "artifact-123",
+      "blob_hex": "4b4350454e4331000102030405060708090a0bd5f6b839a0b60787086ea6204568e56ba3b344628ea0337c3bb2ba",
+      "key_hex": "d7bb079ac3570e9f401099634422ccbf4a3ef73e8d21d4c59361ac38b200b1d4",
+      "name": "aes-hello",
+      "nonce_hex": "000102030405060708090a0b",
+      "plaintext_hex": "68656c6c6f20776f726c64",
+      "plaintext_utf8": "hello world"
+    },
+    {
+      "artifact_id": "11111111-1111-4111-8111-111111111111",
+      "blob_hex": "4b4350454e43310c0d0e0f10111213141516175fd362d267483af78d2dde3de3fd10b09aea8d00e11a141b6f8f995608741c6a8056db3a17e4983a33db2e34",
+      "key_hex": "9e13ad8c1194c97aba758c2c7ee1c28675172a19f755a9fc19e030a5efb50762",
+      "name": "aes-unicode",
+      "nonce_hex": "0c0d0e0f1011121314151617",
+      "plaintext_hex": "436f6e7465c3ba646f207365637265746f20c3a7c3a36f20f09f9a80",
+      "plaintext_utf8": "Conteúdo secreto ção 🚀"
+    },
+    {
+      "artifact_id": "empty-id",
+      "blob_hex": "4b4350454e4331000102030405060708090a0b0c6aab7987fd929f1a95dd9ad8feb3f9",
+      "key_hex": "3473c9fb763ad71b5f118a4fcc5caaebf8c22a0fea8e34cf2f3377be8ce2fc4b",
+      "name": "aes-empty",
+      "nonce_hex": "000102030405060708090a0b",
+      "plaintext_hex": "",
+      "plaintext_utf8": ""
+    }
+  ],
+  "artifacts": [
+    {
+      "canonical": "{\"content_hash\":\"106885c07123f9e17648b79f31b76773d3de5a6530b1205af80a73523e43ba56\",\"format\":\"markdown\",\"id\":\"11111111-1111-4111-8111-111111111111\",\"tenant_id\":\"acme-corp\",\"timestamp\":\"2026-01-02T03:04:05.123456+00:00\",\"title\":\"Minimal Artifact\",\"user_id\":\"alice@acme.com\",\"version\":\"1\",\"visibility\":\"public\"}",
+      "input": {
+        "content_hash": "106885c07123f9e17648b79f31b76773d3de5a6530b1205af80a73523e43ba56",
+        "format": "markdown",
+        "id": "11111111-1111-4111-8111-111111111111",
+        "tenant_id": "acme-corp",
+        "timestamp": "2026-01-02T03:04:05.123456+00:00",
+        "title": "Minimal Artifact",
+        "user_id": "alice@acme.com",
+        "version": "1",
+        "visibility": "public"
+      },
+      "name": "minimal_public",
+      "signature": "84d2c57fa39f23123508ec45993fd78480060973ea1c2f58604355df7baddf987161846900103dc2ce63b20930e0b5674cd72c846d056d0b7ceaf3c5cc854606",
+      "to_dict": {
+        "content_hash": "106885c07123f9e17648b79f31b76773d3de5a6530b1205af80a73523e43ba56",
+        "format": "markdown",
+        "id": "11111111-1111-4111-8111-111111111111",
+        "signature": "",
+        "tenant_id": "acme-corp",
+        "timestamp": "2026-01-02T03:04:05.123456+00:00",
+        "title": "Minimal Artifact",
+        "user_id": "alice@acme.com",
+        "version": "1",
+        "visibility": "public"
+      }
+    },
+    {
+      "canonical": "{\"acl\":{\"allowed_teams\":[\"finance\"],\"allowed_tenants\":[\"acme-corp\"],\"allowed_users\":[\"bob@acme.com\",\"carol@acme.com\"]},\"content_hash\":\"106885c07123f9e17648b79f31b76773d3de5a6530b1205af80a73523e43ba56\",\"content_url\":\"https://cdn.example.com/a.json\",\"embeddings\":[0.5,0.25,1.0,-0.125],\"format\":\"json\",\"id\":\"22222222-2222-4222-8222-222222222222\",\"lineage\":{\"agent\":\"analyst-v3\",\"data_sources\":[\"warehouse:finance\",\"csv:ledger\"],\"parent_reports\":[\"33333333-3333-4333-8333-333333333333\"],\"query\":\"quarterly revenue 2026\"},\"source\":\"agent:analyst-v3\",\"summary\":\"Revenue up 12% QoQ\",\"tags\":[\"finance\",\"revenue\",\"q1\"],\"team\":\"finance\",\"tenant_id\":\"acme-corp\",\"timestamp\":\"2026-01-02T03:04:05.123456+00:00\",\"title\":\"Quarterly Revenue Analysis\",\"user_id\":\"bob@acme.com\",\"version\":\"2\",\"visibility\":\"team\"}",
+      "input": {
+        "acl": {
+          "allowed_teams": [
+            "finance"
+          ],
+          "allowed_tenants": [
+            "acme-corp"
+          ],
+          "allowed_users": [
+            "bob@acme.com",
+            "carol@acme.com"
+          ]
+        },
+        "content_hash": "106885c07123f9e17648b79f31b76773d3de5a6530b1205af80a73523e43ba56",
+        "content_url": "https://cdn.example.com/a.json",
+        "embeddings": [
+          0.5,
+          0.25,
+          1.0,
+          -0.125
+        ],
+        "format": "json",
+        "id": "22222222-2222-4222-8222-222222222222",
+        "lineage": {
+          "agent": "analyst-v3",
+          "data_sources": [
+            "warehouse:finance",
+            "csv:ledger"
+          ],
+          "parent_reports": [
+            "33333333-3333-4333-8333-333333333333"
+          ],
+          "query": "quarterly revenue 2026"
+        },
+        "source": "agent:analyst-v3",
+        "summary": "Revenue up 12% QoQ",
+        "tags": [
+          "finance",
+          "revenue",
+          "q1"
+        ],
+        "team": "finance",
+        "tenant_id": "acme-corp",
+        "timestamp": "2026-01-02T03:04:05.123456+00:00",
+        "title": "Quarterly Revenue Analysis",
+        "user_id": "bob@acme.com",
+        "version": "2",
+        "visibility": "team"
+      },
+      "name": "full_optional_fields",
+      "signature": "e3343c1b5defde55ff5975108798f215c91298c1ceb54e282c799579c0a35f02f1a995b3427791fd14a5c9e419ede1d303a0179cb78479961f69faf0d4f0d909",
+      "to_dict": {
+        "acl": {
+          "allowed_teams": [
+            "finance"
+          ],
+          "allowed_tenants": [
+            "acme-corp"
+          ],
+          "allowed_users": [
+            "bob@acme.com",
+            "carol@acme.com"
+          ]
+        },
+        "content_hash": "106885c07123f9e17648b79f31b76773d3de5a6530b1205af80a73523e43ba56",
+        "content_url": "https://cdn.example.com/a.json",
+        "embeddings": [
+          0.5,
+          0.25,
+          1.0,
+          -0.125
+        ],
+        "format": "json",
+        "id": "22222222-2222-4222-8222-222222222222",
+        "lineage": {
+          "agent": "analyst-v3",
+          "data_sources": [
+            "warehouse:finance",
+            "csv:ledger"
+          ],
+          "parent_reports": [
+            "33333333-3333-4333-8333-333333333333"
+          ],
+          "query": "quarterly revenue 2026"
+        },
+        "signature": "",
+        "source": "agent:analyst-v3",
+        "summary": "Revenue up 12% QoQ",
+        "tags": [
+          "finance",
+          "revenue",
+          "q1"
+        ],
+        "team": "finance",
+        "tenant_id": "acme-corp",
+        "timestamp": "2026-01-02T03:04:05.123456+00:00",
+        "title": "Quarterly Revenue Analysis",
+        "user_id": "bob@acme.com",
+        "version": "2",
+        "visibility": "team"
+      }
+    },
+    {
+      "canonical": "{\"content_hash\":\"521bfd98d4d2111dd256c703c5434bd94b1a19e130a0b93b264ef037906665a5\",\"format\":\"text\",\"id\":\"44444444-4444-4444-8444-444444444444\",\"summary\":\"line1\\nline2 with emoji \\ud83e\\udde0 and \\u00e7edilla\",\"tags\":[\"\\u00f1and\\u00fa\",\"a\\u00e7\\u00e3o\"],\"tenant_id\":\"acme-corp\",\"timestamp\":\"2026-01-02T03:04:05.123456+00:00\",\"title\":\"Relat\\u00f3rio \\u00e7\\u00e3o \\u00e3 \\u00ea \\u2014 \\ud83d\\ude80 \\\"quoted\\\" \\\\slash\\\\ tab\\there\",\"user_id\":\"jos\\u00e9@acme.com\",\"version\":\"1\",\"visibility\":\"org\"}",
+      "input": {
+        "content_hash": "521bfd98d4d2111dd256c703c5434bd94b1a19e130a0b93b264ef037906665a5",
+        "format": "text",
+        "id": "44444444-4444-4444-8444-444444444444",
+        "summary": "line1\nline2 with emoji 🧠 and çedilla",
+        "tags": [
+          "ñandú",
+          "ação"
+        ],
+        "tenant_id": "acme-corp",
+        "timestamp": "2026-01-02T03:04:05.123456+00:00",
+        "title": "Relatório ção ã ê — 🚀 \"quoted\" \\slash\\ tab\there",
+        "user_id": "josé@acme.com",
+        "version": "1",
+        "visibility": "org"
+      },
+      "name": "unicode_and_escaping",
+      "signature": "b929d20b6b16ff504c650d4ac9a719f478b01b046d3e44a0d90efe223beb30909fa8d58fe88d91c241237b735892c53a126b79cd8b65e41ab3f67495b8b3d002",
+      "to_dict": {
+        "content_hash": "521bfd98d4d2111dd256c703c5434bd94b1a19e130a0b93b264ef037906665a5",
+        "format": "text",
+        "id": "44444444-4444-4444-8444-444444444444",
+        "signature": "",
+        "summary": "line1\nline2 with emoji 🧠 and çedilla",
+        "tags": [
+          "ñandú",
+          "ação"
+        ],
+        "tenant_id": "acme-corp",
+        "timestamp": "2026-01-02T03:04:05.123456+00:00",
+        "title": "Relatório ção ã ê — 🚀 \"quoted\" \\slash\\ tab\there",
+        "user_id": "josé@acme.com",
+        "version": "1",
+        "visibility": "org"
+      }
+    },
+    {
+      "canonical": "{\"content_hash\":\"\",\"format\":\"text\",\"id\":\"55555555-5555-4555-8555-555555555555\",\"tenant_id\":\"acme-corp\",\"timestamp\":\"2026-01-02T03:04:05.123456+00:00\",\"title\":\"Untitled\",\"user_id\":\"alice@acme.com\",\"version\":\"1\",\"visibility\":\"private\"}",
+      "input": {
+        "content_hash": "",
+        "format": "text",
+        "id": "55555555-5555-4555-8555-555555555555",
+        "tenant_id": "acme-corp",
+        "timestamp": "2026-01-02T03:04:05.123456+00:00",
+        "title": "Untitled",
+        "user_id": "alice@acme.com",
+        "version": "1",
+        "visibility": "private"
+      },
+      "name": "empty_content_hash",
+      "signature": "147332d47d21abe05b3841cee4fb8204212e107408bfe541cdd1ee78dced9304a48aecee1680fb649578f1657762333fafadcdad992b3f355af1f2c29d54fc01",
+      "to_dict": {
+        "content_hash": "",
+        "format": "text",
+        "id": "55555555-5555-4555-8555-555555555555",
+        "signature": "",
+        "tenant_id": "acme-corp",
+        "timestamp": "2026-01-02T03:04:05.123456+00:00",
+        "title": "Untitled",
+        "user_id": "alice@acme.com",
+        "version": "1",
+        "visibility": "private"
+      }
+    },
+    {
+      "canonical": "{\"content_hash\":\"08f0be883564cbf2d0031e32d0b433425a4ca7b3bc87dbcd9b1b12571be9d663\",\"format\":\"csv\",\"id\":\"66666666-6666-4666-8666-666666666666\",\"lineage\":{\"agent\":\"\",\"data_sources\":[],\"parent_reports\":[],\"query\":\"q\"},\"tenant_id\":\"acme-corp\",\"timestamp\":\"2026-01-02T03:04:05.123456+00:00\",\"title\":\"Derived Report\",\"user_id\":\"alice@acme.com\",\"version\":\"1\",\"visibility\":\"public\"}",
+      "input": {
+        "content_hash": "08f0be883564cbf2d0031e32d0b433425a4ca7b3bc87dbcd9b1b12571be9d663",
+        "format": "csv",
+        "id": "66666666-6666-4666-8666-666666666666",
+        "lineage": {
+          "agent": "",
+          "data_sources": [],
+          "parent_reports": [],
+          "query": "q"
+        },
+        "tenant_id": "acme-corp",
+        "timestamp": "2026-01-02T03:04:05.123456+00:00",
+        "title": "Derived Report",
+        "user_id": "alice@acme.com",
+        "version": "1",
+        "visibility": "public"
+      },
+      "name": "lineage_only",
+      "signature": "3819364175153bfba2b69b721e1de398fdfbbdba11d3504374e313b4987ed793cee733f47a4197c2d472094975f940c1bb9c2704b17bb4606e997fe7ac6e8204",
+      "to_dict": {
+        "content_hash": "08f0be883564cbf2d0031e32d0b433425a4ca7b3bc87dbcd9b1b12571be9d663",
+        "format": "csv",
+        "id": "66666666-6666-4666-8666-666666666666",
+        "lineage": {
+          "agent": "",
+          "data_sources": [],
+          "parent_reports": [],
+          "query": "q"
+        },
+        "signature": "",
+        "tenant_id": "acme-corp",
+        "timestamp": "2026-01-02T03:04:05.123456+00:00",
+        "title": "Derived Report",
+        "user_id": "alice@acme.com",
+        "version": "1",
+        "visibility": "public"
+      }
+    }
+  ],
+  "content_keys": [
+    {
+      "artifact_id": "11111111-1111-4111-8111-111111111111",
+      "key_hex": "9e13ad8c1194c97aba758c2c7ee1c28675172a19f755a9fc19e030a5efb50762"
+    },
+    {
+      "artifact_id": "artifact-123",
+      "key_hex": "d7bb079ac3570e9f401099634422ccbf4a3ef73e8d21d4c59361ac38b200b1d4"
+    },
+    {
+      "artifact_id": "🐍-unicode-id",
+      "key_hex": "24b14fd42cee171b0de979ce964aa0ba40b2efce27ebba2e9ec93f2d8cbcce88"
+    }
+  ],
+  "generator": "sdk/python/kcp (models.py + crypto.py, reference implementation)",
+  "hashes": [
+    {
+      "input_hex": "",
+      "input_utf8": "",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "input_hex": "68656c6c6f206b6370",
+      "input_utf8": "hello kcp",
+      "sha256": "106885c07123f9e17648b79f31b76773d3de5a6530b1205af80a73523e43ba56"
+    },
+    {
+      "input_hex": "436f6e7465c3ba646f20636f6d206163656e746f733a20c3a7c3a36f",
+      "input_utf8": "Conteúdo com acentos: ção",
+      "sha256": "521bfd98d4d2111dd256c703c5434bd94b1a19e130a0b93b264ef037906665a5"
+    },
+    {
+      "input_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+      "input_utf8": "\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\b\t\n\u000b\f\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~��������������������������������������������������������������������������������������������������������������������������������",
+      "sha256": "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880"
+    }
+  ],
+  "is_encrypted_false": [
+    "",
+    "plain text",
+    "KCPEN",
+    "KCPENC"
+  ],
+  "private_key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "public_key_hex": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+  "raw_sign": [
+    {
+      "canonical": "{\"tenant_id\":\"corp\",\"title\":\"Test\",\"user_id\":\"alice\"}",
+      "payload": {
+        "tenant_id": "corp",
+        "title": "Test",
+        "user_id": "alice"
+      },
+      "signature": "e04d749ada6891112aee0a858182ebd1b3dc9b1be5e0cb6ec5d8b2ece774a70c3ba8bf9c4d34a32a27d9274bbc7023c23f878350f1b74118ee809da64eac1605"
+    },
+    {
+      "canonical": "{\"a\":1,\"b\":\"x\",\"c\":[1,2,3],\"d\":{\"y\":null,\"z\":true}}",
+      "payload": {
+        "a": 1,
+        "b": "x",
+        "c": [
+          1,
+          2,
+          3
+        ],
+        "d": {
+          "y": null,
+          "z": true
+        }
+      },
+      "signature": "325a2582102e887c39b91dda690169104ef6cfcb544d95559ce03337bffb7004538fda1862d14d464f18f834dab98302df0e2cdb33271386dc4efd4163442107"
+    },
+    {
+      "canonical": "{\"title\":\"Quote \\\" and \\u00e9 and \\\\ backslash\"}",
+      "payload": {
+        "title": "Quote \" and é and \\ backslash"
+      },
+      "signature": "b83c1cf98c3ecb91ef3e7c8eb3c515c741ba52ca969d1e9945a69fc384d229cde5dd4e39e65c7228ea321b3ce265ea384dfd40281d3c82160a16361d8d1eea0a"
+    }
+  ],
+  "seed_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+}

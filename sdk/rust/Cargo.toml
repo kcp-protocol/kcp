@@ -1,0 +1,37 @@
+[package]
+name = "kcp-sdk"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "KCP — Knowledge Context Protocol — Rust SDK: embedded node, Ed25519-signed artifacts, SQLite + FTS5 storage"
+license = "Apache-2.0"
+repository = "https://github.com/kcp-protocol/kcp"
+homepage = "https://kcp-protocol.org"
+readme = "README.md"
+keywords = ["kcp", "knowledge", "agents", "ed25519", "sqlite"]
+categories = ["database", "cryptography"]
+
+[lib]
+name = "kcp"
+path = "src/lib.rs"
+
+[dependencies]
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+sha2 = "0.10"
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+hex = "0.4"
+base64 = "0.22"
+thiserror = "1"
+chrono = "0.4"
+aes-gcm = "0.10"
+hkdf = "0.12"
+rand = "0.8"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.test]
+opt-level = 0
