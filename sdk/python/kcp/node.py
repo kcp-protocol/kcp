@@ -9,6 +9,20 @@ Usage (embedded — no server):
     atom = node.publish("JWT Auth Guide", content=b"...", format="markdown")
     results = node.search("authentication")
 
+Usage (semantic / hybrid search — opt-in, local vector index):
+    # Offline plumbing (deterministic hash embedder, no network, no semantics):
+    node = KCPNode(user_id="alice@acme.com", search_backend="sqlite-vss", embedding_model="hash")
+    # Real semantics via a local Ollama daemon or the OpenAI API:
+    node = KCPNode(user_id="alice@acme.com", search_backend="sqlite-vss",
+                   embedding_model="ollama:nomic-embed-text")
+    node.search("rate limiting", mode="semantic")            # cosine similarity
+    node.search("rate limiting", mode="hybrid", alpha=0.5)   # BM25 + cosine
+
+The default node is FTS5-only (zero dependencies); ``mode='semantic'`` raises
+:class:`~kcp.embeddings.SemanticSearchUnavailableError` until a vector backend is
+enabled. See ``docs``/``README`` for what is *real* semantics (ollama/openai) vs.
+offline plumbing (``hash``).
+
 Usage (with HTTP server for P2P/sharing):
     node = KCPNode(user_id="alice@acme.com", tenant_id="acme-corp")
     node.serve(port=8800)  # Starts FastAPI server
@@ -22,7 +36,7 @@ import json
 import base64
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 from uuid import uuid4
 
 from .models import (
@@ -41,8 +55,23 @@ from .store import LocalStore
 from .sync_worker import SyncWorker
 from .lineage_graph import LineageGraph, ForkPair, SyncProof
 from .merkle import MerkleProof
+from .embeddings import (
+    BaseEmbeddingProvider,
+    EmbeddingError,
+    SemanticSearchUnavailableError,
+    resolve_embedding_provider,
+)
+from .vector_index import BRUTEFORCE_BACKEND, DEFAULT_VECTOR_BACKEND, LOCAL_BACKENDS
 
 logger = logging.getLogger("kcp.node")
+
+#: Backends that keep FTS5/BM25 as the only ranking strategy (the default).
+KEYWORD_SEARCH_BACKENDS = frozenset({"fts5", "fts", "keyword", "bm25", "default", "none"})
+#: Search modes accepted by :meth:`KCPNode.search`.
+SEARCH_MODES = ("keyword", "semantic", "hybrid")
+#: Backends tracked in issue #1 but not implemented in the local SDK.
+UNSUPPORTED_SEARCH_BACKENDS = frozenset({"qdrant", "pgvector", "chroma", "chromadb", "milvus", "weaviate", "faiss"})
+
 
 class KCPNode:
     """
@@ -56,10 +85,53 @@ class KCPNode:
         tenant_id: str = "local",
         db_path: str = "~/.kcp/kcp.db",
         keys_dir: str = "~/.kcp/keys",
+        search_backend: str = "fts5",
+        embedding_model: Any = "hash",
+        embedder: Optional[Any] = None,
     ):
+        """Create an embedded node.
+
+        Args:
+            user_id, tenant_id, db_path, keys_dir: identity and storage location.
+            search_backend: ranking backend. ``"fts5"`` (default) is keyword-only and
+                zero-dependency. ``"sqlite-vss"`` (aliases: ``sqlite_vss``, ``sqlite``,
+                ``local``, ``vector``, ``auto``) enables the local vector index used by
+                ``mode='semantic'|'hybrid'`` — the native extension is optional and the
+                index degrades explicitly to a pure-Python exact cosine scan.
+                ``qdrant``/``pgvector``/``chroma``/… are not implemented (issue #1).
+            embedding_model: embedding provider spec — ``"hash"`` (default, offline
+                deterministic plumbing), ``"hash:DIM"``, ``"ollama[:MODEL]"``,
+                ``"openai[:MODEL]"``/``"text-embedding-3-small"``, a custom
+                ``callable(text) -> list[float]``, or a provider object with ``embed()``.
+                Passing anything other than the ``"hash"`` default implies the local
+                vector backend (it is only useful for semantic search).
+            embedder: explicit provider/callable override (same as passing it as
+                ``embedding_model``); kept for readability at call sites.
+
+        Raises:
+            ValueError: unknown backend name.
+            NotImplementedError: backend is documented in issue #1 but not implemented here.
+        """
+        self.search_backend = (search_backend or "fts5").strip().lower()
+        self.embedding_model = embedder if embedder is not None else embedding_model
+        self._embedding_provider: Optional[BaseEmbeddingProvider] = None
+        self._last_embedding_error: Optional[str] = None
+        self._enable_vector = self._resolve_search_backend(
+            explicit_embedder=embedder is not None or self.embedding_model not in (None, "hash")
+        )
         self.user_id = user_id
         self.tenant_id = tenant_id
-        self.store = LocalStore(db_path)
+        self.store = LocalStore(
+            db_path,
+            vector_backend=self.search_backend if self._enable_vector else BRUTEFORCE_BACKEND,
+        )
+        if self._enable_vector:
+            logger.info(
+                "semantic search enabled: backend=%s embedding_model=%s index=%s",
+                self.search_backend,
+                self.embedding_model if isinstance(self.embedding_model, str) else type(self.embedding_model).__name__,
+                self.store.embedding_stats().get("effective_backend"),
+            )
         self.keys_dir = Path(keys_dir).expanduser()
         self.keys_dir.mkdir(parents=True, exist_ok=True)
 
@@ -84,6 +156,172 @@ class KCPNode:
     @property
     def node_id(self) -> str:
         return self.store.get_config("node_id")
+
+    # ─── Search backend ────────────────────────────────────
+
+    def _resolve_search_backend(self, *, explicit_embedder: bool) -> bool:
+        """Validate ``search_backend`` and decide whether the vector index is on.
+
+        Returns ``True`` when semantic/hybrid modes are available. Passing a
+        non-default ``embedding_model``/``embedder`` with the default ``fts5``
+        backend auto-enables the local vector index (documented, logged once) —
+        an embedding model is meaningless in keyword-only mode.
+        """
+        backend = self.search_backend
+        if backend in UNSUPPORTED_SEARCH_BACKENDS:
+            raise NotImplementedError(
+                f"search_backend={backend!r} is a server-side backend tracked in kcp-protocol/kcp#1 "
+                "and is not implemented in the local SDK. Supported: 'fts5' (keyword, default) or "
+                f"local vector backends {sorted(LOCAL_BACKENDS)}."
+            )
+        if backend in KEYWORD_SEARCH_BACKENDS:
+            if explicit_embedder:
+                logger.info(
+                    "embedding_model/embedder given with keyword-only search_backend=%r — "
+                    "enabling the local vector index (%s)",
+                    backend,
+                    DEFAULT_VECTOR_BACKEND,
+                )
+                self.search_backend = DEFAULT_VECTOR_BACKEND
+                return True
+            return False
+        if backend not in LOCAL_BACKENDS:
+            raise ValueError(
+                f"unknown search_backend {self.search_backend!r}. Supported: 'fts5' (keyword, default) or "
+                f"local vector backends {sorted(LOCAL_BACKENDS)}. Server backends (qdrant, pgvector, "
+                "chroma) are not implemented yet (kcp-protocol/kcp#1)."
+            )
+        return True
+
+    @property
+    def semantic_available(self) -> bool:
+        """True when semantic/hybrid search is enabled on this node."""
+        return self._enable_vector
+
+    @property
+    def embedder(self) -> BaseEmbeddingProvider:
+        """The embedding provider (built on first use; raises if semantic is disabled)."""
+        if not self._enable_vector:
+            raise SemanticSearchUnavailableError(
+                "this node has no vector backend (search_backend='fts5'). "
+                "Build it with search_backend='sqlite-vss' to enable semantic search."
+            )
+        if self._embedding_provider is None:
+            self._embedding_provider = resolve_embedding_provider(self.embedding_model)
+        return self._embedding_provider
+
+    @property
+    def embedding_model_name(self) -> str:
+        """Model identifier used as the index key (also groups vectors in the DB)."""
+        return self.embedder.model
+
+    def semantic_status(self) -> dict:
+        """Report the semantic-search configuration and health.
+
+        Includes the vector index status, where ``fallback_reason`` documents any
+        explicit degradation (e.g. sqlite-vss extension unavailable → pure-Python
+        exact scan) — nothing degrades silently.
+        """
+        status: dict = {
+            "enabled": self._enable_vector,
+            "search_backend": self.search_backend,
+            "modes": list(SEARCH_MODES),
+            "default_mode": "keyword",
+            "last_embedding_error": self._last_embedding_error,
+            "embedding": None,
+            "index": None,
+        }
+        if not self._enable_vector:
+            return status
+        try:
+            status["embedding"] = self.embedder.status()
+            status["index"] = self.store.embedding_stats()
+            status["indexed_artifacts"] = len(self.store.embedded_ids(self.embedding_model_name))
+        except EmbeddingError as exc:  # provider misconfigured — surface, do not hide
+            status["embedding"] = {"error": str(exc)}
+            status["index"] = self.store.embedding_stats()
+        return status
+
+    def _artifact_text(self, artifact: KnowledgeArtifact) -> str:
+        """Text used to embed an artifact (title + summary + tags + readable content)."""
+        parts = [artifact.title, artifact.summary, " ".join(artifact.tags)]
+        raw = self.store.get_content(artifact.content_hash)
+        if raw and not raw[:4] == b"KCP1":  # skip encrypted blobs
+            parts.append(raw.decode("utf-8", errors="ignore")[:4000])
+        return "\n".join(part for part in parts if part)
+
+    def _index_artifact(self, artifact: KnowledgeArtifact) -> bool:
+        """Embed and index one artifact. Returns False (never raises) on failure.
+
+        Embedding failures are logged and recorded in
+        :meth:`semantic_status`'s ``last_embedding_error``; a publish is never
+        rolled back because an embedding provider was unreachable.
+        """
+        if not self._enable_vector:
+            return False
+        try:
+            vector = self.embedder.embed(self._artifact_text(artifact))
+            self.store.index_embedding(artifact.id, vector, model=self.embedding_model_name)
+            self._last_embedding_error = None
+            return True
+        except EmbeddingError as exc:
+            self._last_embedding_error = str(exc)
+            logger.warning("embedding failed for artifact %s: %s", artifact.id, exc)
+            return False
+
+    def _backfill_embeddings(self, max_items: int = 500) -> int:
+        """Embed artifacts that were published before the index existed / after sync."""
+        if not self._enable_vector:
+            return 0
+        try:
+            indexed = self.store.embedded_ids(self.embedding_model_name)
+        except EmbeddingError:
+            return 0
+        pending = [a for a in self.store.list_artifacts(limit=max_items) if a.id not in indexed]
+        count = 0
+        for artifact in pending:
+            if self._index_artifact(artifact):
+                count += 1
+        if count:
+            logger.info("backfilled %d embedding(s) for model %s", count, self.embedding_model_name)
+        return count
+
+    def reindex(self, force: bool = False, limit: Optional[int] = None) -> dict:
+        """(Re)build embeddings for stored artifacts.
+
+        Args:
+            force: re-embed artifacts that already have a vector for this model.
+            limit: cap the number of artifacts examined (most recent first).
+
+        Returns:
+            ``{"model", "indexed", "skipped", "errors", "indexed_total", "backend", "fallback_reason"}``
+        """
+        if not self._enable_vector:
+            raise SemanticSearchUnavailableError(
+                "reindex() requires a vector backend: build the node with search_backend='sqlite-vss'."
+            )
+        model = self.embedding_model_name
+        already = set() if force else self.store.embedded_ids(model)
+        artifacts = self.store.list_artifacts(limit=limit or 100000)
+        indexed = skipped = errors = 0
+        for artifact in artifacts:
+            if artifact.id in already:
+                skipped += 1
+                continue
+            if self._index_artifact(artifact):
+                indexed += 1
+            else:
+                errors += 1
+        stats = self.store.embedding_stats()
+        return {
+            "model": model,
+            "indexed": indexed,
+            "skipped": skipped,
+            "errors": errors,
+            "indexed_total": stats.get("vectors", 0),
+            "backend": stats.get("effective_backend"),
+            "fallback_reason": stats.get("fallback_reason"),
+        }
 
     # ─── Core Operations ───────────────────────────────────────
 
@@ -183,6 +421,9 @@ class KCPNode:
 
         # Store
         self.store.publish(artifact, content=stored_content, derived_from=derived_from)
+
+        # Semantic index (opt-in) — never blocks a publish, failures are logged
+        self._index_artifact(artifact)
 
         # Enqueue for async delivery to peers (non-blocking)
         if visibility != "private" and self.peers:
@@ -315,23 +556,61 @@ class KCPNode:
         self,
         query: str,
         limit: int = 20,
+        mode: str = "keyword",
+        alpha: float = 0.5,
         include_superseded: bool = False,
         include_expired: bool = False,
         canonical_id: Optional[str] = None,
     ) -> SearchResponse:
-        """Search artifacts by text.
+        """Search artifacts by text (keyword), vector similarity or both.
 
         Only ``active`` artifacts are returned by default — superseded versions
-        and expired (TTL'd) knowledge are excluded unless explicitly requested.
+        and expired (TTL'd) knowledge are excluded unless explicitly requested
+        (``include_superseded`` / ``include_expired``), in every mode.
+
+        Args:
+            query: what to look for.
+            limit: max results.
+            mode: ``"keyword"`` (default — FTS5/BM25, unchanged behaviour),
+                ``"semantic"`` (cosine similarity over the local vector index) or
+                ``"hybrid"`` (normalized BM25 + cosine fusion).
+            alpha: BM25 weight for ``mode="hybrid"`` (``0.0`` = pure semantic,
+                ``1.0`` = pure keyword).
+            include_superseded: also return superseded versions (issue #4).
+            include_expired: also return expired (TTL'd) knowledge (issue #4).
+            canonical_id: restrict to the version chain of that canonical artifact.
+
+        Raises:
+            ValueError: unknown mode or out-of-range alpha.
+            SemanticSearchUnavailableError: semantic/hybrid requested on a node built
+                without a vector backend.
+            EmbeddingError: the embedding provider could not embed the query.
         """
-        return self.store.search(
-            query,
-            tenant_id=None,
-            limit=limit,
-            include_superseded=include_superseded,
-            include_expired=include_expired,
-            canonical_id=canonical_id,
-        )
+        resolved = (mode or "keyword").strip().lower()
+        if resolved not in SEARCH_MODES:
+            raise ValueError(f"unknown search mode {mode!r}; expected one of {list(SEARCH_MODES)}")
+
+        lifecycle = {
+            "include_superseded": include_superseded,
+            "include_expired": include_expired,
+            "canonical_id": canonical_id,
+        }
+
+        if resolved == "keyword":
+            return self.store.search(query, tenant_id=None, limit=limit, **lifecycle)
+        if not self._enable_vector:
+            raise SemanticSearchUnavailableError(
+                f"search(mode={resolved!r}) needs a vector backend, but this node is keyword-only "
+                f"(search_backend={self.search_backend!r}). Build it with "
+                "KCPNode(..., search_backend='sqlite-vss') to enable the local vector index."
+            )
+        # Lazily embed anything missing (artifacts published before opt-in, synced peers)
+        self._backfill_embeddings()
+        vector = self.embedder.embed(query)
+        model = self.embedding_model_name
+        if resolved == "semantic":
+            return self.store.semantic_search(vector, model=model, limit=limit, **lifecycle)
+        return self.store.hybrid_search(query, vector, model=model, alpha=alpha, limit=limit, **lifecycle)
 
     def list(
         self,

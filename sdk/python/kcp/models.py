@@ -237,7 +237,13 @@ class KnowledgeArtifact:
 
 @dataclass
 class SearchResult:
-    """A single search result from DISCOVER operation."""
+    """A single search result from DISCOVER operation.
+
+    ``relevance`` is the ranking score reported to clients (BM25-derived for
+    keyword search, cosine for semantic search, fused score for hybrid search).
+    ``scores`` optionally exposes the raw components, e.g.
+    ``{"keyword": 0.8, "semantic": 0.4, "fused": 0.6}`` for hybrid search.
+    """
     id: str
     title: str
     summary: str
@@ -247,6 +253,7 @@ class SearchResult:
     preview: str = ""
     status: str = "active"
     canonical_id: str = ""
+    scores: dict = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict) -> "SearchResult":
@@ -260,6 +267,7 @@ class SearchResult:
             preview=data.get("preview", ""),
             status=data.get("status", "active"),
             canonical_id=data.get("canonical_id", ""),
+            scores=data.get("scores", {}),
         )
 
 

@@ -13,7 +13,10 @@ Usage:
     kcp publish --title "..." FILE    # Publish a file as knowledge artifact
     kcp publish --ttl 3600 FILE       # Publish with a 1h TTL
     kcp versions CANONICAL_ID         # List all versions of an artifact
-    kcp search "query"                # Search artifacts (active only)
+    kcp search "query"                # Search artifacts (keyword by default, active only)
+    kcp search "query" --mode semantic|hybrid [--alpha 0.5]
+    kcp search "query" --include-superseded --include-expired
+    kcp reindex                       # (Re)build the semantic vector index
     kcp list                          # List recent artifacts
     kcp get ARTIFACT_ID               # Show artifact details
     kcp lineage ARTIFACT_ID           # Show lineage chain
@@ -52,6 +55,8 @@ def main():
         cmd_publish(rest)
     elif cmd == "search":
         cmd_search(rest)
+    elif cmd == "reindex":
+        cmd_reindex(rest)
     elif cmd == "list":
         cmd_list(rest)
     elif cmd == "get":
@@ -86,7 +91,16 @@ def _get_node(**kwargs):
     tenant_id = os.environ.get("KCP_TENANT", kwargs.get("tenant_id", "local"))
     db_path = os.environ.get("KCP_DB", kwargs.get("db_path", "~/.kcp/kcp.db"))
 
-    return KCPNode(user_id=user_id, tenant_id=tenant_id, db_path=db_path)
+    # Semantic search is opt-in: only forward the kwargs when the env asks for them,
+    # so a plain `KCPNode(...)` stays FTS5-only (zero dependencies).
+    search_backend = os.environ.get("KCP_SEARCH_BACKEND")
+    embedding_model = os.environ.get("KCP_EMBEDDING_MODEL")
+    if search_backend:
+        kwargs.setdefault("search_backend", search_backend)
+    if embedding_model:
+        kwargs.setdefault("embedding_model", embedding_model)
+
+    return KCPNode(user_id=user_id, tenant_id=tenant_id, db_path=db_path, **kwargs)
 
 
 def _detect_language() -> str:
@@ -260,48 +274,60 @@ def cmd_publish(args):
 
 
 def cmd_search(args):
-    """Search for artifacts (active only unless widened with flags)."""
-    include_superseded = "--include-superseded" in args
-    include_expired = "--include-expired" in args
-    limit = 20
-    words = []
-    i = 0
-    while i < len(args):
-        if args[i] in ("--include-superseded", "--include-expired"):
-            i += 1
-        elif args[i] == "--limit" and i + 1 < len(args):
-            limit = int(args[i + 1]); i += 2
-        else:
-            words.append(args[i]); i += 1
-
-    if not words:
-        print("Usage: kcp search QUERY [--include-superseded] [--include-expired] [--limit N]")
+    """Search for artifacts — keyword (default), semantic or hybrid."""
+    query, options = _parse_search_options(args)
+    if not query:
+        print(
+            "Usage: kcp search QUERY [--mode keyword|semantic|hybrid] [--alpha 0.5] [--limit N] "
+            "[--include-superseded] [--include-expired]"
+        )
         sys.exit(1)
 
-    query = " ".join(words)
+    from .embeddings import EmbeddingError, SemanticSearchUnavailableError
+
+    mode = options["mode"].lower()
     node = _get_node()
-    results = node.search(
-        query,
-        limit=limit,
-        include_superseded=include_superseded,
-        include_expired=include_expired,
-    )
+    try:
+        results = node.search(
+            query,
+            limit=options["limit"],
+            mode=mode,
+            alpha=options["alpha"],
+            include_superseded=options["include_superseded"],
+            include_expired=options["include_expired"],
+        )
+    except SemanticSearchUnavailableError as exc:
+        print(f"⚠️  Semantic search unavailable: {exc}")
+        print(
+            "   Enable it with: KCP_SEARCH_BACKEND=sqlite-vss "
+            "[KCP_EMBEDDING_MODEL=ollama:nomic-embed-text] kcp search …"
+        )
+        sys.exit(2)
+    except (EmbeddingError, ValueError) as exc:
+        print(f"❌ Search failed (mode={mode}): {exc}")
+        sys.exit(2)
 
     if not results.results:
-        print(f"No results for: {query}")
+        print(f"No results for: {query} (mode={mode})")
         return
 
-    scope = "all statuses" if (include_superseded and include_expired) else (
-        "active + superseded" if include_superseded else (
-            "active + expired" if include_expired else "active only"
+    scope = "all statuses" if (options["include_superseded"] and options["include_expired"]) else (
+        "active + superseded" if options["include_superseded"] else (
+            "active + expired" if options["include_expired"] else "active only"
         )
     )
-    print(f"Found {results.total} artifacts ({results.query_time_ms}ms) — {scope}:\n")
+    print(f"Found {results.total} artifacts ({results.query_time_ms}ms, mode={mode} — {scope}):\n")
     for r in results.results:
         print(f"  📄 {r.title}")
         print(f"     ID: {r.id}")
         print(f"     {r.summary[:100]}" if r.summary else "")
-        print(f"     Format: {r.format} | Created: {r.created_at[:10]} | Status: {r.status}")
+        detail = (
+            f"     Format: {r.format} | Created: {r.created_at[:10]} "
+            f"| Status: {r.status} | Score: {r.relevance}"
+        )
+        if r.scores:
+            detail += "  (" + ", ".join(f"{k}={v:.3f}" for k, v in r.scores.items()) + ")"
+        print(detail)
         print()
 
 
@@ -335,6 +361,73 @@ def cmd_versions(args):
         print(f"Current: v{current_artifact.version} ({current_artifact.id})")
     else:
         print("Current: (none — no active version)")
+
+
+def _parse_search_options(args):
+    """Split `kcp search` arguments into (query, options) — flags may come first."""
+    options = {
+        "mode": os.environ.get("KCP_SEARCH_MODE", "keyword"),
+        "alpha": float(os.environ.get("KCP_SEARCH_ALPHA", "0.5")),
+        "limit": 20,
+        "include_superseded": False,
+        "include_expired": False,
+    }
+    terms: list = []
+    index = 0
+    try:
+        while index < len(args):
+            arg = args[index]
+            if arg in ("--mode", "-m") and index + 1 < len(args):
+                options["mode"] = args[index + 1]
+                index += 2
+            elif arg.startswith("--mode="):
+                options["mode"] = arg.split("=", 1)[1]
+                index += 1
+            elif arg == "--alpha" and index + 1 < len(args):
+                options["alpha"] = float(args[index + 1])
+                index += 2
+            elif arg.startswith("--alpha="):
+                options["alpha"] = float(arg.split("=", 1)[1])
+                index += 1
+            elif arg in ("--limit", "-n") and index + 1 < len(args):
+                options["limit"] = int(args[index + 1])
+                index += 2
+            elif arg.startswith("--limit="):
+                options["limit"] = int(arg.split("=", 1)[1])
+                index += 1
+            elif arg in ("--include-superseded", "--include-expired"):
+                options[arg[2:].replace("-", "_")] = True
+                index += 1
+            else:
+                terms.append(arg)
+                index += 1
+    except ValueError:
+        print("Usage: kcp search QUERY [--mode keyword|semantic|hybrid] [--alpha 0.5] [--limit N]")
+        print("       [--include-superseded] [--include-expired]")
+        print("       --alpha must be a number in [0, 1]; --limit must be an integer")
+        sys.exit(1)
+    return " ".join(terms), options
+
+
+def cmd_reindex(args):
+    """(Re)build embeddings for stored artifacts (semantic search)."""
+    force = "--force" in args or "-f" in args
+    node = _get_node()
+    if not node.semantic_available:
+        print("Vector backend is disabled for this node.")
+        print(
+            "Set KCP_SEARCH_BACKEND=sqlite-vss (optionally KCP_EMBEDDING_MODEL=ollama:nomic-embed-text) "
+            "before running `kcp reindex`."
+        )
+        sys.exit(2)
+
+    stats = node.reindex(force=force)
+    print(f"Indexed {stats['indexed']} artifact(s), skipped {stats['skipped']}, errors {stats['errors']}")
+    print(f"  model:   {stats['model']}")
+    print(f"  backend: {stats['backend']}")
+    if stats.get("fallback_reason"):
+        print(f"  fallback: {stats['fallback_reason']}")
+    print(f"  vectors: {stats['indexed_total']}")
 
 
 def cmd_list(args):
@@ -533,8 +626,10 @@ Commands:
   publish [--title T] FILE      Publish a file as knowledge artifact
   publish --ttl 3600 FILE       Publish with a TTL (seconds) / --expires-at ISO8601
   publish --version-of ID FILE  Publish a new version of an existing artifact
-  search QUERY                  Search artifacts (active only)
+  search QUERY                  Search artifacts (keyword by default, active only)
+  search QUERY --mode semantic|hybrid [--alpha 0.5]
   search QUERY --include-superseded --include-expired
+  reindex [--force]             (Re)build the semantic vector index
   list [N]                      List recent artifacts (default: 20)
   get ID                        Show artifact details + content
   lineage ID                    Show lineage chain (root → current)
@@ -548,9 +643,12 @@ Commands:
   export [FILE]                 Export all artifacts as JSON
 
 Environment:
-  KCP_USER      Your user ID (default: anonymous)
-  KCP_TENANT    Your tenant/org (default: local)
-  KCP_DB        Database path (default: ~/.kcp/kcp.db)
+  KCP_USER            Your user ID (default: anonymous)
+  KCP_TENANT          Your tenant/org (default: local)
+  KCP_DB              Database path (default: ~/.kcp/kcp.db)
+  KCP_SEARCH_BACKEND  'fts5' (default) or 'sqlite-vss' (local vector index)
+  KCP_EMBEDDING_MODEL 'hash' (offline), 'ollama:nomic-embed-text', 'openai:text-embedding-3-small'
+  KCP_SEARCH_MODE     Default mode for `kcp search`: keyword | semantic | hybrid
 
 Examples:
   kcp init
@@ -560,6 +658,8 @@ Examples:
   kcp publish --version-of $ID --title "Report v2" report-v2.md
   kcp versions $ID
   kcp search "authentication"
+  kcp search "rate limiting" --mode hybrid --alpha 0.5
+  KCP_SEARCH_BACKEND=sqlite-vss KCP_EMBEDDING_MODEL=ollama:nomic-embed-text kcp reindex
   kcp serve --port 8800
   kcp peer add https://colleague-node.trycloudflare.com
   kcp sync https://colleague-node.trycloudflare.com
