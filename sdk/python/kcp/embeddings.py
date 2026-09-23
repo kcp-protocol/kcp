@@ -93,11 +93,21 @@ def tokenize(text: str) -> list[str]:
     return _WORD_RE.findall(text.lower())
 
 
+def _is_zero_norm(value: float) -> bool:
+    """True when a norm (or a sum of squares) is zero.
+
+    Norms are never negative, so ``math.isclose(value, 0.0)`` with the default
+    relative tolerance is exact here — it only avoids comparing floats with
+    ``==``.
+    """
+    return math.isclose(value, 0.0)
+
+
 def l2_normalize(vector: Sequence[float]) -> list[float]:
     """Return ``vector`` scaled to unit L2 norm (zero vectors are returned as-is)."""
     values = [float(v) for v in vector]
     norm = math.sqrt(sum(v * v for v in values))
-    if norm == 0.0:
+    if _is_zero_norm(norm):
         return values
     return [v / norm for v in values]
 
@@ -113,7 +123,7 @@ def cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
         dot += x * y
         na += x * x
         nb += y * y
-    if na == 0.0 or nb == 0.0:
+    if _is_zero_norm(na) or _is_zero_norm(nb):
         return 0.0
     return dot / math.sqrt(na * nb)
 
@@ -275,7 +285,9 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
     ):
         raw_url = base_url or os.environ.get("OLLAMA_HOST") or "http://localhost:11434"
         if not raw_url.startswith(("http://", "https://")):
-            raw_url = f"http://{raw_url}"
+            # Ollama runs as a loopback daemon by design; callers behind a TLS
+            # proxy pass a base_url that already starts with https://.
+            raw_url = f"http://{raw_url}"  # NOSONAR — local loopback endpoint, not user input
         self.base_url = raw_url.rstrip("/")
         self.model = model
         self.timeout = timeout
@@ -387,9 +399,9 @@ class CallableEmbeddingProvider(BaseEmbeddingProvider):
     def embed(self, text: str) -> list[float]:
         try:
             raw = self._fn(text)
-        except EmbeddingError:
-            raise
         except Exception as exc:
+            if isinstance(exc, EmbeddingError):
+                raise  # the embedder already speaks KCP's error type — propagate as-is
             raise EmbeddingError(f"custom embedder failed: {exc}") from exc
         values = _validate_vector(raw, f"custom({self.model})", expected_dim=self.dim)
         self.dim = len(values)
