@@ -87,8 +87,15 @@ jobs:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      # ── SonarCloud ──
-      - name: SonarCloud Scan
+      # ── SonarCloud (opt-in) ──
+      # A análise já roda pelo SonarCloud GitHub App (Automatic Analysis), que
+      # publica o check "SonarCloud Code Analysis" + Quality Gate nos PRs.
+      # O SonarCloud NÃO permite Automatic Analysis e scan via CI ao mesmo tempo:
+      # para ligar este step é preciso (1) variable SONAR_CI_SCAN=true,
+      # (2) desativar o Automatic Analysis no projeto e (3) definir SONAR_TOKEN.
+      # Sem isso o step é pulado (antes falhava sempre por token ausente).
+      - name: SonarCloud Scan (opt-in)
+        if: ${{ vars.SONAR_CI_SCAN == 'true' }}
         uses: SonarSource/sonarcloud-github-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
