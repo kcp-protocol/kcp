@@ -8,6 +8,7 @@ Covers all REST endpoints:
   GET  /kcp/v1/artifacts/{id}
   GET  /kcp/v1/artifacts/{id}/content
   GET  /kcp/v1/artifacts/{id}/lineage
+  GET  /kcp/v1/artifacts/{id}/verify
   GET  /kcp/v1/sync/list
   GET  /kcp/v1/sync/artifact/{id}
   POST /kcp/v1/sync/push
@@ -852,3 +853,116 @@ class TestReplication:
         summary = tmp_node.store.get_replication_summary()
         assert summary[a1.id] == 2
         assert summary[a2.id] == 1
+
+
+# ─── Signature Verification ───────────────────────────────────
+
+
+class TestVerifySignature:
+    def test_verify_endpoint_returns_200(self, client_with_artifact):
+        """GET /kcp/v1/artifacts/{id}/verify is exposed."""
+        client, artifact, _ = client_with_artifact
+        resp = client.get(f"/kcp/v1/artifacts/{artifact.id}/verify")
+        assert resp.status_code == 200
+
+    def test_verify_self_published_is_valid(self, client_with_artifact):
+        """Artifact signed by this node verifies against its own identity key."""
+        client, artifact, node = client_with_artifact
+        data = client.get(f"/kcp/v1/artifacts/{artifact.id}/verify").json()
+        assert data["artifact_id"] == artifact.id
+        assert data["status"] == "valid"
+        assert data["signer"] == node.node_id
+        assert data["key_fingerprint"]
+        assert data["candidates"] >= 1
+
+    def test_verify_unsigned_artifact(self, client_with_artifact):
+        """An artifact with no signature reports 'unsigned'."""
+        client, artifact, node = client_with_artifact
+        node.store._conn.execute("UPDATE kcp_artifacts SET signature = '' WHERE id = ?", (artifact.id,))
+        node.store._conn.commit()
+        data = client.get(f"/kcp/v1/artifacts/{artifact.id}/verify").json()
+        assert data["status"] == "unsigned"
+        assert data["signer"] is None
+
+    def test_verify_malformed_signature_is_invalid(self, client_with_artifact):
+        """A signature that is not a 64-byte hex blob reports 'invalid'."""
+        client, artifact, node = client_with_artifact
+        node.store._conn.execute("UPDATE kcp_artifacts SET signature = ? WHERE id = ?", ("not-a-signature", artifact.id))
+        node.store._conn.commit()
+        data = client.get(f"/kcp/v1/artifacts/{artifact.id}/verify").json()
+        assert data["status"] == "invalid"
+        assert data["signer"] is None
+
+    def test_verify_tampered_payload_is_invalid(self, client_with_artifact):
+        """Payload modified after signing (same user) reports 'invalid'."""
+        client, artifact, node = client_with_artifact
+        node.store._conn.execute("UPDATE kcp_artifacts SET title = ? WHERE id = ?", ("Tampered title", artifact.id))
+        node.store._conn.commit()
+        data = client.get(f"/kcp/v1/artifacts/{artifact.id}/verify").json()
+        assert data["status"] == "invalid"
+
+    def test_verify_unknown_key_for_foreign_artifact(self, tmp_path):
+        """Artifact from a node whose key we do not know reports 'unknown_key'."""
+        node_a = KCPNode(
+            user_id="alice@example.com",
+            tenant_id="org-a",
+            db_path=str(tmp_path / "a.db"),
+            keys_dir=str(tmp_path / "keys_a"),
+        )
+        node_b = KCPNode(
+            user_id="bob@example.com",
+            tenant_id="org-b",
+            db_path=str(tmp_path / "b.db"),
+            keys_dir=str(tmp_path / "keys_b"),
+        )
+        artifact = node_a.publish("Peer Artifact", content="signed elsewhere", format="text")
+        assert node_b.store.import_artifact(artifact.to_dict())
+
+        client = TestClient(node_b.create_app())
+        data = client.get(f"/kcp/v1/artifacts/{artifact.id}/verify").json()
+        assert data["status"] == "unknown_key"
+        assert data["signer"] is None
+
+    def test_verify_peer_public_key_makes_it_valid(self, tmp_path):
+        """Once the signer's public key is known as a peer, the artifact verifies."""
+        node_a = KCPNode(
+            user_id="alice@example.com",
+            tenant_id="org-a",
+            db_path=str(tmp_path / "a.db"),
+            keys_dir=str(tmp_path / "keys_a"),
+        )
+        node_b = KCPNode(
+            user_id="bob@example.com",
+            tenant_id="org-b",
+            db_path=str(tmp_path / "b.db"),
+            keys_dir=str(tmp_path / "keys_b"),
+        )
+        artifact = node_a.publish("Peer Artifact", content="signed elsewhere", format="text")
+        node_b.store.add_peer("node-a", "https://a.example.com", "A", public_key=node_a.public_key.hex())
+        assert node_b.store.import_artifact(artifact.to_dict())
+
+        client = TestClient(node_b.create_app())
+        data = client.get(f"/kcp/v1/artifacts/{artifact.id}/verify").json()
+        assert data["status"] == "valid"
+        assert data["signer"] == "node-a"
+        assert data["candidates"] == 2  # own identity key + the peer key
+
+    def test_verify_ignores_garbage_peer_key(self, tmp_path):
+        """A malformed peer public_key is skipped, not used to verify."""
+        tmp_node = KCPNode(
+            user_id="test@example.com",
+            tenant_id="test-org",
+            db_path=str(tmp_path / "n.db"),
+            keys_dir=str(tmp_path / "keys"),
+        )
+        tmp_node.store.add_peer("bad-peer", "https://bad.example.com", "Bad", public_key="zzzz")
+        artifact = tmp_node.publish("Solo", content="x", format="text")
+        client = TestClient(tmp_node.create_app())
+        data = client.get(f"/kcp/v1/artifacts/{artifact.id}/verify").json()
+        assert data["status"] == "valid"
+        assert data["candidates"] == 1
+
+    def test_verify_not_found_returns_404(self, client):
+        """Unknown artifact id returns 404, like the neighbouring routes."""
+        resp = client.get("/kcp/v1/artifacts/does-not-exist/verify")
+        assert resp.status_code == 404
