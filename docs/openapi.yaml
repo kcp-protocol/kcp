@@ -282,6 +282,53 @@ paths:
                           type: string
                           format: date-time
 
+  /kcp/v1/artifacts/{artifact_id}/verify:
+    get:
+      summary: Get signature verification status
+      description: |
+        Checks the artifact signature against the public keys this node already
+        knows (its own identity key plus the keys stored for known peers).
+        A key supplied by the caller is never trusted. `unknown_key` means the
+        signature could not be checked — not that it is valid.
+      operationId: getArtifactSignatureStatus
+      parameters:
+        - name: artifact_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Signature status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [artifact_id, status, signer, key_fingerprint, candidates]
+                properties:
+                  artifact_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [unsigned, valid, invalid, unknown_key]
+                    description: |
+                      unsigned = no signature; valid = a known key verifies it;
+                      invalid = malformed signature or payload tampered after
+                      signing; unknown_key = signed but no known key validates it
+                  signer:
+                    type: [string, 'null']
+                    description: Node ID or key fingerprint of the matching key
+                  key_fingerprint:
+                    type: [string, 'null']
+                    description: Short SHA-256 fingerprint (16 hex chars) of the matching key
+                  candidates:
+                    type: integer
+                    description: Number of locally known keys that were checked
+        '404':
+          description: Artifact not found
+
   /kcp/v1/peers:
     get:
       summary: List known peers

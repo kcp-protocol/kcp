@@ -77,6 +77,78 @@ SEARCH_MODES = ("keyword", "semantic", "hybrid")
 #: Backends tracked in issue #1 but not implemented in the local SDK.
 UNSUPPORTED_SEARCH_BACKENDS = frozenset({"qdrant", "pgvector", "chroma", "chromadb", "milvus", "weaviate", "faiss"})
 
+#: Signature statuses reported by :meth:`KCPNode.signature_status` / the HTTP API.
+SIGNATURE_STATUSES = ("unsigned", "valid", "invalid", "unknown_key")
+
+
+def _public_key_fingerprint(public_key: bytes) -> str:
+    """Short SHA-256 fingerprint (first 16 hex chars) of an Ed25519 public key."""
+    return hash_content(public_key)[:16]
+
+
+def _decode_public_key(raw: str | bytes | None) -> bytes | None:
+    """Decode a stored peer public key (hex, base64 fallback) into raw bytes.
+
+    Returns ``None`` when the value is missing, malformed, or is not 32 bytes
+    long — the size of an Ed25519 public key.
+    """
+    if isinstance(raw, bytes):
+        return raw if len(raw) == 32 else None
+    if not raw:
+        return None
+    text = raw.strip()
+    try:
+        key = bytes.fromhex(text)
+    except ValueError:
+        try:
+            key = base64.b64decode(text, validate=True)
+        except ValueError:
+            return None
+    return key if len(key) == 32 else None
+
+
+def _verify_signature_status(artifact: KnowledgeArtifact, candidates: list[dict], self_user_id: str) -> dict:
+    """Classify an artifact's signature against locally known public keys.
+
+    ``candidates`` is a list of ``{"signer": str | None, "key": bytes}`` entries
+    — this node's identity key plus the keys stored for known peers. A key
+    supplied by the caller is never used here.
+
+    Statuses:
+      - ``unsigned``: the artifact carries no signature at all.
+      - ``invalid``: the signature is malformed, or the artifact claims to be
+        from this node's user but no known key verifies it — i.e. the signed
+        payload was modified after signing.
+      - ``unknown_key``: the signature is well-formed but no locally known key
+        verifies it, so we cannot tell whether it is good or bad.
+      - ``valid``: a known identity/peer key verifies the signature.
+    """
+    signature = artifact.signature or ""
+    if not signature:
+        return {"status": "unsigned", "signer": None, "key_fingerprint": None}
+
+    try:
+        signature_bytes = bytes.fromhex(signature)
+    except ValueError:
+        signature_bytes = b""
+    if len(signature_bytes) != 64:  # Ed25519 signatures are 64 bytes
+        return {"status": "invalid", "signer": None, "key_fingerprint": None}
+
+    payload = artifact.to_dict()
+    for candidate in candidates:
+        key = candidate["key"]
+        if verify_artifact(payload, key):
+            return {
+                "status": "valid",
+                "signer": candidate.get("signer") or _public_key_fingerprint(key),
+                "key_fingerprint": _public_key_fingerprint(key),
+            }
+
+    if artifact.user_id == self_user_id:
+        # Published by this user, yet no key of ours validates it → tampered.
+        return {"status": "invalid", "signer": None, "key_fingerprint": None}
+    return {"status": "unknown_key", "signer": None, "key_fingerprint": None}
+
 
 class KCPNode:
     """
@@ -682,6 +754,37 @@ class KCPNode:
         key = public_key or self.public_key
         return verify_artifact(artifact.to_dict(), key)
 
+    def signature_candidates(self) -> list[dict]:
+        """Public keys this node can use to verify artifact signatures.
+
+        That is always the node's own identity key, plus any ``public_key``
+        stored locally for a known peer (gossip/registry). Keys coming from a
+        caller or HTTP body are deliberately not accepted.
+        """
+        candidates = [{"signer": self.node_id, "key": self.public_key}]
+        seen = {self.public_key}
+        for peer in self.store.get_peers():
+            key = _decode_public_key(peer.get("public_key"))
+            if key is None or key in seen:
+                continue
+            seen.add(key)
+            candidates.append({"signer": peer.get("id") or _public_key_fingerprint(key), "key": key})
+        return candidates
+
+    def signature_status(self, artifact: KnowledgeArtifact) -> dict:
+        """Report whether an artifact's signature validates against a known key.
+
+        Returns a dict with ``artifact_id``, ``status`` (one of
+        :data:`SIGNATURE_STATUSES`), ``signer`` (node id or key fingerprint of
+        the matching key, else ``None``), ``key_fingerprint`` and the number of
+        key candidates that were checked.
+        """
+        candidates = self.signature_candidates()
+        status = _verify_signature_status(artifact, candidates, self.user_id)
+        status["artifact_id"] = artifact.id
+        status["candidates"] = len(candidates)
+        return status
+
     def stats(self) -> dict:
         """Get node statistics — full (internal use only)."""
         s = self.store.stats()
@@ -1099,6 +1202,17 @@ class KCPNode:
             status["replication_factor"] = rf
             status["complete"] = status["count"] >= rf
             return status
+
+        @app.get("/kcp/v1/artifacts/{artifact_id}/verify")
+        def verify_artifact_signature(artifact_id: str, caller: tuple = Depends(_caller_identity)):
+            """Check the artifact signature against keys this node knows (never the caller's)."""
+            caller_user, caller_tenant = caller
+            a = self.get(artifact_id)
+            if not a:
+                raise HTTPException(404, "Artifact not found")
+            if not _can_read(a, caller_user, caller_tenant):
+                raise HTTPException(403, "Access denied")
+            return self.signature_status(a)
 
         @app.post("/kcp/v1/artifacts")
         def publish_artifact(body: dict):
