@@ -1,0 +1,75 @@
+name: Bug report
+description: Something is broken in the protocol, an SDK, the MCP server or the node UI
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please check the docs (`docs/`, `SPEC.md`) and existing issues first.
+
+        ⚠️ Security problems must **not** be filed here — see [SECURITY.md](../blob/main/SECURITY.md).
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Where did you hit the problem?
+      options:
+        - Python SDK (sdk/python)
+        - Rust SDK (sdk/rust)
+        - TypeScript SDK (sdk/typescript)
+        - Go SDK (sdk/go)
+        - MCP server (mcp-server)
+        - Node HTTP API (kcp/v1)
+        - Web UI (kcp/ui)
+        - Spec / RFC (docs, rfcs, SPEC.md)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: Package version, or the commit sha you built from
+      placeholder: "0.2.0 / a5a3163"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Include the exact command or HTTP request and the full error output
+      placeholder: |
+        Command: kcp search "vector index" --mode semantic
+        Expected: 3 results
+        Got: ...
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Smallest sequence that reproduces it (code block, no screenshots of text)
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: |
+        OS / arch:
+        Python (or Rust/Node/Go) version:
+        Embedding provider (hash / ollama / openai / callable):
+        Vector backend (auto / sqlite-vss / qdrant / exact):
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I reproduced this on the latest `main` (or the latest release)
+          required: true
+        - label: I searched existing issues and this is not a duplicate
+          required: true
