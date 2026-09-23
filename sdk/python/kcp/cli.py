@@ -335,15 +335,16 @@ def cmd_search(args):
         print(f"No results for: {query} (mode={mode})")
         return
 
-    scope = (
-        "all statuses"
-        if (options["include_superseded"] and options["include_expired"])
-        else (
-            "active + superseded"
-            if options["include_superseded"]
-            else ("active + expired" if options["include_expired"] else "active only")
-        )
-    )
+    include_superseded = options["include_superseded"]
+    include_expired = options["include_expired"]
+    if include_superseded and include_expired:
+        scope = "all statuses"
+    elif include_superseded:
+        scope = "active + superseded"
+    elif include_expired:
+        scope = "active + expired"
+    else:
+        scope = "active only"
     print(f"Found {results.total} artifacts ({results.query_time_ms}ms, mode={mode} — {scope}):\n")
     for r in results.results:
         print(f"  📄 {r.title}")

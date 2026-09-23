@@ -251,7 +251,7 @@ class KCPNode:
         """Text used to embed an artifact (title + summary + tags + readable content)."""
         parts = [artifact.title, artifact.summary, " ".join(artifact.tags)]
         raw = self.store.get_content(artifact.content_hash)
-        if raw and not raw[:4] == b"KCP1":  # skip encrypted blobs
+        if raw and raw[:4] != b"KCP1":  # skip encrypted blobs
             parts.append(raw.decode("utf-8", errors="ignore")[:4000])
         return "\n".join(part for part in parts if part)
 

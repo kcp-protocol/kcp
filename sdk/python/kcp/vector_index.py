@@ -151,8 +151,9 @@ class VectorIndex:
             return
 
         # requested sqlite-vss / auto / vector — try the native extension.
+        # The import is intentional here: an optional dependency loaded lazily.
         try:
-            import sqlite_vss  # noqa: PLC0415 — optional dependency, imported lazily
+            import sqlite_vss  # noqa: PLC0415
         except ImportError:
             self.fallback_reason = (
                 "sqlite-vss extension not installed — falling back to the pure-Python exact cosine "
