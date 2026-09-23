@@ -1,0 +1,47 @@
+name: Feature request / RFC proposal
+description: Propose a capability, an API change, or a new RFC
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Protocol-level changes go through an RFC (see `rfcs/` and
+        `CONTRIBUTING.md`). Small SDK/UI improvements can be proposed directly here.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of proposal
+      options:
+        - SDK / tooling improvement
+        - Node API or UI improvement
+        - Protocol change (needs an RFC)
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can't you do today, and why does it matter?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What you want to happen. Concrete API sketch / example is welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Including "do nothing" — and why it is worse
+  - type: checkboxes
+    id: compat
+    attributes:
+      label: Compatibility
+      options:
+        - label: This can be added without breaking existing peers/artifacts
+        - label: This would break the wire format or a public API (needs migration notes)
