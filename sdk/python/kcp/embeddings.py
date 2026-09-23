@@ -414,6 +414,18 @@ class CallableEmbeddingProvider(BaseEmbeddingProvider):
 _OPENAI_MODEL_PREFIXES = ("text-embedding-", "openai:")
 
 
+def _hash_provider_from_spec(raw: str) -> HashEmbeddingProvider:
+    """Build the hashing-trick provider from a ``hash:DIM`` spec.
+
+    Any ``ValueError`` from the dim parsing *or* from the provider constructor
+    (``dim < 8``) is reported as an invalid spec.
+    """
+    try:
+        return HashEmbeddingProvider(dim=int(raw.split(":", 1)[1]))
+    except ValueError as exc:
+        raise ValueError(f"invalid hash embedding model {raw!r}: dim must be an integer") from exc
+
+
 def resolve_embedding_provider(spec: Any = None, *, dim: int | None = None) -> BaseEmbeddingProvider:
     """Build an embedding provider from a spec.
 
@@ -448,10 +460,7 @@ def resolve_embedding_provider(spec: Any = None, *, dim: int | None = None) -> B
     if lowered in ("", "none", "hash", "default"):
         return HashEmbeddingProvider(dim=dim or 256)
     if lowered.startswith("hash:"):
-        try:
-            return HashEmbeddingProvider(dim=int(raw.split(":", 1)[1]))
-        except ValueError as exc:
-            raise ValueError(f"invalid hash embedding model {raw!r}: dim must be an integer") from exc
+        return _hash_provider_from_spec(raw)
     if lowered.startswith("ollama"):
         model = _split_model(raw, default="nomic-embed-text")
         return OllamaEmbeddingProvider(model=model, dim=dim)

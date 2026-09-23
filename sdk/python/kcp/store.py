@@ -32,6 +32,11 @@ from .vector_index import DEFAULT_VECTOR_BACKEND, VectorIndex
 
 logger = logging.getLogger("kcp.store")
 
+#: SQL filter fragments reused by the FTS and vector query paths below — the
+#: artifact table is aliased ``a`` there.
+SQL_AND_TENANT_A = " AND a.tenant_id = ?"
+SQL_AND_CANONICAL_A = " AND COALESCE(a.canonical_id, a.id) = ?"
+
 # ─── Schema ────────────────────────────────────────────────────
 
 SCHEMA_SQL = """
@@ -640,10 +645,10 @@ class LocalStore:
             params: list = [fts_query]
 
             if tenant_id:
-                sql += " AND a.tenant_id = ?"
+                sql += SQL_AND_TENANT_A
                 params.append(tenant_id)
             if canonical_id:
-                sql += " AND COALESCE(a.canonical_id, a.id) = ?"
+                sql += SQL_AND_CANONICAL_A
                 params.append(canonical_id)
 
             sql += status_sql
@@ -711,10 +716,10 @@ class LocalStore:
             """
             count_params: list = [fts_query]
             if tenant_id:
-                count_sql += " AND a.tenant_id = ?"
+                count_sql += SQL_AND_TENANT_A
                 count_params.append(tenant_id)
             if canonical_id:
-                count_sql += " AND COALESCE(a.canonical_id, a.id) = ?"
+                count_sql += SQL_AND_CANONICAL_A
                 count_params.append(canonical_id)
             count_sql += status_sql
             count_params.extend(status_params)
@@ -790,17 +795,48 @@ class LocalStore:
 
         hits = self._index().search(vector, model=model, limit=None)
         ids = [artifact_id for artifact_id, score in hits if score > min_score]
+        rows = self._load_rows_for_ids(
+            conn,
+            ids,
+            tenant_id=tenant_id,
+            canonical_id=canonical_id,
+            include_superseded=include_superseded,
+            include_expired=include_expired,
+            status=status,
+        )
+        results, total = self._rank_semantic_hits(hits, rows, min_score=min_score, limit=limit, offset=offset)
+
+        elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+        return SearchResponse(results=results, total=total, query_time_ms=int(elapsed))
+
+    def _load_rows_for_ids(
+        self,
+        conn,
+        ids: list[str],
+        *,
+        tenant_id: str | None,
+        canonical_id: str | None,
+        include_superseded: bool,
+        include_expired: bool,
+        status: str | None,
+    ) -> dict:
+        """Fetch ``{id: row}`` for ``ids``, honouring the same filters as the keyword path.
+
+        The IN clause is chunked to stay under SQLite's parameter limit; ids the
+        caller may not see (other tenants, deleted, filtered lifecycle) are simply
+        absent from the result.
+        """
         rows: dict = {}
         for chunk_start in range(0, len(ids), 500):
             chunk = ids[chunk_start : chunk_start + 500]
             placeholders = ",".join("?" for _ in chunk)
-            sql = f"SELECT a.* FROM kcp_artifacts a WHERE a.deleted_at IS NULL AND a.id IN ({placeholders})"  # noqa: S608 — placeholders are all '?'
+            sql = f"SELECT a.* FROM kcp_artifacts a WHERE a.deleted_at IS NULL AND a.id IN ({placeholders})"  # noqa: S608  # nosec B608 — placeholders are all '?'
             params: list = list(chunk)
             if tenant_id:
-                sql += " AND a.tenant_id = ?"
+                sql += SQL_AND_TENANT_A
                 params.append(tenant_id)
             if canonical_id:
-                sql += " AND COALESCE(a.canonical_id, a.id) = ?"
+                sql += SQL_AND_CANONICAL_A
                 params.append(canonical_id)
             status_conds, status_params = self._status_filters("a", include_superseded, include_expired, status)
             for cond in status_conds:
@@ -808,7 +844,18 @@ class LocalStore:
             params.extend(status_params)
             for row in conn.execute(sql, params).fetchall():
                 rows[row["id"]] = row
+        return rows
 
+    @staticmethod
+    def _rank_semantic_hits(
+        hits: list[tuple[str, float]],
+        rows: dict,
+        *,
+        min_score: float,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[SearchResult], int]:
+        """Turn ``(id, score)`` hits into the paged results and total count."""
         results: list[SearchResult] = []
         total = 0
         for artifact_id, score in hits:
@@ -833,9 +880,7 @@ class LocalStore:
                     scores={"semantic": round(score, 6)},
                 )
             )
-
-        elapsed = (datetime.now(timezone.utc) - start).total_seconds() * 1000
-        return SearchResponse(results=results, total=total, query_time_ms=int(elapsed))
+        return results, total
 
     def hybrid_search(
         self,
@@ -1120,7 +1165,7 @@ class LocalStore:
         )
         conn.commit()
 
-    def upsert_peer(self, url: str, name: str = "", node_id: str = "", public_key: str = "", artifact_count: int = 0):
+    def upsert_peer(self, url: str, name: str = "", node_id: str = "", public_key: str = ""):
         """
         Insert or update a peer by URL.
         Used for gossip-discovered peers — no pre-assigned ID needed.

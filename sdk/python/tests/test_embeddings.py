@@ -120,20 +120,24 @@ class TestCallableEmbeddingProvider:
         def boom(_text):
             raise RuntimeError("model exploded")
 
+        provider = CallableEmbeddingProvider(boom)
         with pytest.raises(EmbeddingError, match="model exploded"):
-            CallableEmbeddingProvider(boom).embed("x")
+            provider.embed("x")
 
     def test_non_numeric_output_rejected(self):
+        provider = CallableEmbeddingProvider(lambda _text: ["a", "b"])
         with pytest.raises(EmbeddingError):
-            CallableEmbeddingProvider(lambda _text: ["a", "b"]).embed("x")
+            provider.embed("x")
 
     def test_empty_output_rejected(self):
+        provider = CallableEmbeddingProvider(lambda _text: [])
         with pytest.raises(EmbeddingError):
-            CallableEmbeddingProvider(lambda _text: []).embed("x")
+            provider.embed("x")
 
     def test_non_finite_output_rejected(self):
+        provider = CallableEmbeddingProvider(lambda _text: [float("nan")])
         with pytest.raises(EmbeddingError, match="non-finite"):
-            CallableEmbeddingProvider(lambda _text: [float("nan")]).embed("x")
+            provider.embed("x")
 
     def test_inconsistent_dimension_rejected(self):
         provider = CallableEmbeddingProvider(lambda text: [1.0] * (len(text) or 1))
@@ -174,8 +178,9 @@ class TestOpenAIEmbeddingProvider:
     def test_malformed_response_raises(self, monkeypatch):
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
         monkeypatch.setattr("kcp.embeddings._http_post_json", lambda *a, **k: {"error": "nope"})
+        provider = OpenAIEmbeddingProvider()
         with pytest.raises(EmbeddingError, match="no 'data' array"):
-            OpenAIEmbeddingProvider().embed("hello")
+            provider.embed("hello")
 
     def test_status_never_leaks_key(self, monkeypatch):
         monkeypatch.setenv("OPENAI_API_KEY", "super-secret-key")
@@ -204,13 +209,15 @@ class TestOllamaEmbeddingProvider:
 
     def test_missing_vector_field_raises(self, monkeypatch):
         monkeypatch.setattr("kcp.embeddings._http_post_json", lambda *a, **k: {"model": "x"})
+        provider = OllamaEmbeddingProvider()
         with pytest.raises(EmbeddingError, match="no 'embedding' field"):
-            OllamaEmbeddingProvider().embed("hi")
+            provider.embed("hi")
 
     def test_error_payload_raises(self, monkeypatch):
         monkeypatch.setattr("kcp.embeddings._http_post_json", lambda *a, **k: {"error": "model not found"})
+        provider = OllamaEmbeddingProvider()
         with pytest.raises(EmbeddingError, match="model not found"):
-            OllamaEmbeddingProvider().embed("hi")
+            provider.embed("hi")
 
     def test_unreachable_daemon_raises_embedding_error(self):
         # Nothing listens on port 1 — connection is refused immediately.

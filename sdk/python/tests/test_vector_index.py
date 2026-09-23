@@ -191,12 +191,14 @@ class TestVectorIndexBackends:
         assert "explicitly" in store.vector_index.fallback_reason
 
     def test_server_backend_not_implemented(self, tmp_path):
+        conn = sqlite3.connect(str(tmp_path / "x.db"))
         with pytest.raises(VectorIndexError, match="not implemented"):
-            VectorIndex(sqlite3.connect(str(tmp_path / "x.db")), backend="qdrant")
+            VectorIndex(conn, backend="qdrant")
 
     def test_unknown_backend_rejected(self, tmp_path):
+        conn = sqlite3.connect(str(tmp_path / "y.db"))
         with pytest.raises(VectorIndexError, match="unknown vector backend"):
-            VectorIndex(sqlite3.connect(str(tmp_path / "y.db")), backend="not-a-backend")
+            VectorIndex(conn, backend="not-a-backend")
 
     def test_status_lists_models_and_counts(self, store):
         ids = seed_artifacts(store, [("a", "A", "t")])

@@ -15,6 +15,9 @@ from __future__ import annotations
 import hashlib
 import json
 
+#: Raised verbatim by every entry point when the optional dependency is missing.
+_MISSING_CRYPTO_MSG = "KCP crypto requires 'cryptography' package. Install with: pip install cryptography"
+
 
 def generate_keypair() -> tuple[bytes, bytes]:
     """
@@ -31,7 +34,7 @@ def generate_keypair() -> tuple[bytes, bytes]:
         public_bytes = private_key.public_key().public_bytes_raw()
         return private_bytes, public_bytes
     except ImportError as exc:
-        raise ImportError("KCP crypto requires 'cryptography' package. Install with: pip install cryptography") from exc
+        raise ImportError(_MISSING_CRYPTO_MSG) from exc
 
 
 def sign_artifact(artifact_dict: dict, private_key: bytes) -> str:
@@ -48,7 +51,7 @@ def sign_artifact(artifact_dict: dict, private_key: bytes) -> str:
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
     except ImportError as exc:
-        raise ImportError("KCP crypto requires 'cryptography' package. Install with: pip install cryptography") from exc
+        raise ImportError(_MISSING_CRYPTO_MSG) from exc
 
     # Remove signature field if present
     payload = {k: v for k, v in artifact_dict.items() if k != "signature"}
@@ -78,7 +81,7 @@ def verify_artifact(artifact_dict: dict, public_key: bytes) -> bool:
         from cryptography.exceptions import InvalidSignature
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
     except ImportError as exc:
-        raise ImportError("KCP crypto requires 'cryptography' package. Install with: pip install cryptography") from exc
+        raise ImportError(_MISSING_CRYPTO_MSG) from exc
 
     signature_hex = artifact_dict.get("signature", "")
     if not signature_hex:

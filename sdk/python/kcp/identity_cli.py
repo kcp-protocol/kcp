@@ -404,6 +404,37 @@ def show_identity(lang: str = "en") -> None:
         print(f"💡 To view card:     {BOLD}kcp identity card{RESET}")
 
 
+def _prompt_export_path(output_path: str | None, lang: str) -> str:
+    """Return the backup destination, asking for it when the caller gave none."""
+    if output_path:
+        return output_path
+    default_path = Path.home() / "kcp-identity-backup.enc"
+    label = "Arquivo de saída" if lang == "pt" else "Output file"
+    return input(f"{label} [{default_path}]: ").strip() or str(default_path)
+
+
+def _prompt_export_password(lang: str) -> tuple[str | None, bool]:
+    """Ask (twice) for the backup passphrase.
+
+    Returns ``(passphrase, proceed)``: an empty passphrase means an unprotected
+    backup (``proceed`` stays True), a mismatch aborts the export.
+    """
+    if lang == "pt":
+        print(f"\n{CYAN}Proteger com senha (recomendado):{RESET}")
+    else:
+        print(f"\n{CYAN}Password protect (recommended):{RESET}")
+
+    password = input("Senha: ").strip()
+    if not password:
+        return None, True
+
+    password_confirm = input("Confirme: ").strip()
+    if password != password_confirm:
+        print_error("Senhas não coincidem." if lang == "pt" else "Passwords don't match.")
+        return None, False
+    return password, True
+
+
 def export_backup(output_path: str | None = None, lang: str = "en") -> None:
     """Export identity to backup file."""
     from .identity import export_identity, load_identity_keys
@@ -418,27 +449,12 @@ def export_backup(output_path: str | None = None, lang: str = "en") -> None:
         print_error("Nenhuma identidade para exportar." if lang == "pt" else "No identity to export.")
         return
 
-    if not output_path:
-        default_path = Path.home() / "kcp-identity-backup.enc"
-        if lang == "pt":
-            output_path = input(f"Arquivo de saída [{default_path}]: ").strip() or str(default_path)
-        else:
-            output_path = input(f"Output file [{default_path}]: ").strip() or str(default_path)
+    output_path = _prompt_export_path(output_path, lang)
+    password, proceed = _prompt_export_password(lang)
+    if not proceed:
+        return
 
-    # Password protection
-    if lang == "pt":
-        print(f"\n{CYAN}Proteger com senha (recomendado):{RESET}")
-    else:
-        print(f"\n{CYAN}Password protect (recommended):{RESET}")
-
-    password = input("Senha: ").strip()
-    if password:
-        password_confirm = input("Confirme: ").strip()
-        if password != password_confirm:
-            print_error("Senhas não coincidem." if lang == "pt" else "Passwords don't match.")
-            return
-
-    export_identity(keys_dir, Path(output_path), password or None)
+    export_identity(keys_dir, Path(output_path), password)
 
     print()
     print_success(f"Backup exportado para: {output_path}")
