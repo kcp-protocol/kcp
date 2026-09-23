@@ -6,12 +6,8 @@ Main client for interacting with a KCP node.
 
 from __future__ import annotations
 
-import json
-from typing import Optional
-from pathlib import Path
-
-from .models import KnowledgeArtifact, Lineage, ACL, SearchResult, SearchResponse
-from .crypto import sign_artifact, verify_artifact, hash_content
+from .crypto import hash_content, sign_artifact, verify_artifact
+from .models import ACL, KnowledgeArtifact, Lineage, SearchResponse
 
 
 class KCPClient:
@@ -44,8 +40,8 @@ class KCPClient:
         node_url: str,
         tenant_id: str,
         user_id: str,
-        private_key: Optional[bytes] = None,
-        team: Optional[str] = None,
+        private_key: bytes | None = None,
+        team: str | None = None,
     ):
         self.node_url = node_url.rstrip("/")
         self.tenant_id = tenant_id
@@ -59,12 +55,12 @@ class KCPClient:
         content: bytes,
         format: str,
         visibility: str = "team",
-        tags: Optional[list[str]] = None,
-        team: Optional[str] = None,
+        tags: list[str] | None = None,
+        team: str | None = None,
         source: str = "",
         summary: str = "",
-        lineage: Optional[Lineage] = None,
-        acl: Optional[ACL] = None,
+        lineage: Lineage | None = None,
+        acl: ACL | None = None,
     ) -> KnowledgeArtifact:
         """
         Publish a knowledge artifact to the KCP node.
@@ -100,9 +96,7 @@ class KCPClient:
         )
 
         # Compute content hash
-        artifact.content_hash = hash_content(
-            content if isinstance(content, bytes) else content.encode("utf-8")
-        )
+        artifact.content_hash = hash_content(content if isinstance(content, bytes) else content.encode("utf-8"))
 
         # Sign artifact
         if self.private_key:
@@ -116,10 +110,10 @@ class KCPClient:
     def search(
         self,
         query: str = "",
-        tags: Optional[list[str]] = None,
-        team: Optional[str] = None,
-        from_date: Optional[str] = None,
-        to_date: Optional[str] = None,
+        tags: list[str] | None = None,
+        team: str | None = None,
+        from_date: str | None = None,
+        to_date: str | None = None,
         limit: int = 10,
         offset: int = 0,
     ) -> SearchResponse:
@@ -180,6 +174,7 @@ class KCPClient:
         """POST request to KCP node."""
         try:
             import httpx
+
             response = httpx.post(
                 f"{self.node_url}{path}",
                 json=payload,
@@ -192,10 +187,11 @@ class KCPClient:
             # Fallback: return payload as-is (for testing without server)
             return payload
 
-    def _get(self, path: str, params: Optional[dict] = None) -> dict:
+    def _get(self, path: str, params: dict | None = None) -> dict:
         """GET request to KCP node."""
         try:
             import httpx
+
             response = httpx.get(
                 f"{self.node_url}{path}",
                 params=params,
@@ -211,6 +207,7 @@ class KCPClient:
         """GET raw content from KCP node."""
         try:
             import httpx
+
             response = httpx.get(
                 f"{self.node_url}{path}",
                 headers=self._headers(),
@@ -225,6 +222,7 @@ class KCPClient:
         """DELETE request to KCP node."""
         try:
             import httpx
+
             response = httpx.delete(
                 f"{self.node_url}{path}",
                 headers=self._headers(),

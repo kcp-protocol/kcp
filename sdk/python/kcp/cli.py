@@ -30,9 +30,9 @@ Usage:
 
 from __future__ import annotations
 
-import sys
 import json
 import os
+import sys
 from pathlib import Path
 
 
@@ -112,15 +112,15 @@ def _detect_language() -> str:
 def cmd_identity(args):
     """Manage KCP identity (create, recover, show, export, import)."""
     from .identity_cli import (
-        wizard_create_identity,
-        wizard_recover_identity,
-        show_identity,
         export_backup,
         import_backup,
+        show_identity,
+        wizard_create_identity,
+        wizard_recover_identity,
     )
-    
+
     lang = _detect_language()
-    
+
     if not args or args[0] in ("-h", "--help"):
         print("""
 🔐 KCP Identity Management
@@ -135,9 +135,9 @@ Commands:
 Your identity is your cryptographic signature. Back it up!
 """)
         return
-    
+
     subcmd = args[0]
-    
+
     if subcmd == "create":
         wizard_create_identity(lang)
     elif subcmd == "recover":
@@ -164,7 +164,7 @@ def cmd_init(args):
     print(f"   User:     {stats['user_id']}")
     print(f"   Tenant:   {stats['tenant_id']}")
     print(f"   Database: {stats['db_path']}")
-    print(f"   Keys:     ~/.kcp/keys/")
+    print("   Keys:     ~/.kcp/keys/")
 
 
 def cmd_publish(args):
@@ -184,25 +184,37 @@ def cmd_publish(args):
     i = 0
     while i < len(args):
         if args[i] == "--title" and i + 1 < len(args):
-            title = args[i + 1]; explicit_title = title; i += 2
+            title = args[i + 1]
+            explicit_title = title
+            i += 2
         elif args[i] == "--tags" and i + 1 < len(args):
-            tags = [t.strip() for t in args[i + 1].split(",")]; i += 2
+            tags = [t.strip() for t in args[i + 1].split(",")]
+            i += 2
         elif args[i] == "--summary" and i + 1 < len(args):
-            summary = args[i + 1]; i += 2
+            summary = args[i + 1]
+            i += 2
         elif args[i] == "--format" and i + 1 < len(args):
-            fmt = args[i + 1]; explicit_fmt = fmt; i += 2
+            fmt = args[i + 1]
+            explicit_fmt = fmt
+            i += 2
         elif args[i] == "--derived-from" and i + 1 < len(args):
-            derived_from = args[i + 1]; i += 2
+            derived_from = args[i + 1]
+            i += 2
         elif args[i] == "--ttl" and i + 1 < len(args):
-            ttl_seconds = float(args[i + 1]); i += 2
+            ttl_seconds = float(args[i + 1])
+            i += 2
         elif args[i] == "--expires-at" and i + 1 < len(args):
-            expires_at = args[i + 1]; i += 2
+            expires_at = args[i + 1]
+            i += 2
         elif args[i] == "--version-of" and i + 1 < len(args):
-            version_of = args[i + 1]; i += 2
+            version_of = args[i + 1]
+            i += 2
         elif args[i] == "-":
-            file_path = "-"; i += 1
+            file_path = "-"
+            i += 1
         else:
-            file_path = args[i]; i += 1
+            file_path = args[i]
+            i += 1
 
     if not file_path and not version_of:
         print("Usage: kcp publish [--title TITLE] [--tags a,b] [--format md]")
@@ -224,8 +236,15 @@ def cmd_publish(args):
         if not title:
             title = p.stem.replace("-", " ").replace("_", " ").title()
         if not fmt:
-            ext_map = {".md": "markdown", ".html": "html", ".json": "json",
-                       ".csv": "csv", ".txt": "text", ".pdf": "pdf", ".py": "text"}
+            ext_map = {
+                ".md": "markdown",
+                ".html": "html",
+                ".json": "json",
+                ".csv": "csv",
+                ".txt": "text",
+                ".pdf": "pdf",
+                ".py": "text",
+            }
             fmt = ext_map.get(p.suffix.lower(), "text")
 
     if not title:
@@ -257,9 +276,14 @@ def cmd_publish(args):
         return
 
     artifact = node.publish(
-        title=title, content=content, format=fmt,
-        tags=tags, summary=summary, derived_from=derived_from,
-        ttl_seconds=ttl_seconds, expires_at=expires_at,
+        title=title,
+        content=content,
+        format=fmt,
+        tags=tags,
+        summary=summary,
+        derived_from=derived_from,
+        ttl_seconds=ttl_seconds,
+        expires_at=expires_at,
     )
 
     print(f"✅ Published: {artifact.id}")
@@ -311,9 +335,13 @@ def cmd_search(args):
         print(f"No results for: {query} (mode={mode})")
         return
 
-    scope = "all statuses" if (options["include_superseded"] and options["include_expired"]) else (
-        "active + superseded" if options["include_superseded"] else (
-            "active + expired" if options["include_expired"] else "active only"
+    scope = (
+        "all statuses"
+        if (options["include_superseded"] and options["include_expired"])
+        else (
+            "active + superseded"
+            if options["include_superseded"]
+            else ("active + expired" if options["include_expired"] else "active only")
         )
     )
     print(f"Found {results.total} artifacts ({results.query_time_ms}ms, mode={mode} — {scope}):\n")
@@ -321,10 +349,7 @@ def cmd_search(args):
         print(f"  📄 {r.title}")
         print(f"     ID: {r.id}")
         print(f"     {r.summary[:100]}" if r.summary else "")
-        detail = (
-            f"     Format: {r.format} | Created: {r.created_at[:10]} "
-            f"| Status: {r.status} | Score: {r.relevance}"
-        )
+        detail = f"     Format: {r.format} | Created: {r.created_at[:10]} | Status: {r.status} | Score: {r.relevance}"
         if r.scores:
             detail += "  (" + ", ".join(f"{k}={v:.3f}" for k, v in r.scores.items()) + ")"
         print(detail)
@@ -471,7 +496,7 @@ def cmd_get(args):
     # Show content preview
     content = node.get_content(args[0])
     if content and len(content) < 2000:
-        print(f"\n--- Content ---\n")
+        print("\n--- Content ---\n")
         try:
             print(content.decode("utf-8"))
         except UnicodeDecodeError:
@@ -502,7 +527,8 @@ def cmd_lineage(args):
 def cmd_serve(args):
     """Start HTTP server."""
     port = 8800
-    host = "0.0.0.0"
+    # noqa: S104 / nosec B104 — nó P2P precisa escutar em todas as interfaces
+    host = "0.0.0.0"  # noqa: S104  # nosec B104
     for i, a in enumerate(args):
         if a == "--port" and i + 1 < len(args):
             port = int(args[i + 1])
@@ -586,6 +612,7 @@ def cmd_stats(args):
 def cmd_keygen(args):
     """Generate a new Ed25519 keypair."""
     from .crypto import generate_keypair
+
     priv, pub = generate_keypair()
 
     out_dir = Path(args[0]) if args else Path("~/.kcp/keys").expanduser()
@@ -595,7 +622,7 @@ def cmd_keygen(args):
     os.chmod(str(out_dir / "private.key"), 0o600)
     (out_dir / "public.key").write_bytes(pub)
 
-    print(f"✅ Keypair generated")
+    print("✅ Keypair generated")
     print(f"   Private: {out_dir}/private.key")
     print(f"   Public:  {out_dir}/public.key")
     print(f"   Public (hex): {pub.hex()}")

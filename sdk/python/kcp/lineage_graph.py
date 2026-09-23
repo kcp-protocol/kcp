@@ -22,8 +22,8 @@ always union, duplicates are idempotent, and no artifact is ever dropped.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable, Optional
 
 from .crdt import GSet
 from .merkle import (
@@ -33,8 +33,8 @@ from .merkle import (
     normalize_record,
 )
 
-
 # ─── Fork detection ───────────────────────────────────────────
+
 
 @dataclass
 class ForkPair:
@@ -75,7 +75,7 @@ class ForkPair:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ForkPair":
+    def from_dict(cls, data: dict) -> ForkPair:
         parent = data.get("parent_id") or data.get("fork_id") or ""
         return cls(
             parent_id=parent,
@@ -108,6 +108,7 @@ def detect_forks(records: Iterable[dict]) -> list[ForkPair]:
 
 
 # ─── Sync proof ───────────────────────────────────────────────
+
 
 @dataclass
 class SyncProof:
@@ -150,7 +151,7 @@ class SyncProof:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "SyncProof":
+    def from_dict(cls, data: dict) -> SyncProof:
         return cls(
             conflicts=[ForkPair.from_dict(c) for c in data.get("conflicts", [])],
             merged=int(data.get("merged", 0)),
@@ -161,6 +162,7 @@ class SyncProof:
 
 # ─── Lineage graph (G-Set of artifacts + DAG views) ──────────
 
+
 class LineageGraph:
     """
     A grow-only set of artifact records with DAG navigation.
@@ -170,7 +172,7 @@ class LineageGraph:
     associative).
     """
 
-    def __init__(self, records: Optional[Iterable[dict]] = None):
+    def __init__(self, records: Iterable[dict] | None = None):
         self._ids: GSet = GSet()
         self.records: dict[str, dict] = {}
         if records:
@@ -187,17 +189,17 @@ class LineageGraph:
             self.records[rec["id"]] = rec
         return is_new
 
-    def merge(self, other: "LineageGraph") -> "LineageGraph":
+    def merge(self, other: LineageGraph) -> LineageGraph:
         """CRDT union — returns a new graph, mutating neither operand."""
         merged = LineageGraph()
         merged._ids = self._ids.merge(other._ids)
         merged.records = {**self.records, **other.records}
         return merged
 
-    def merge_in_place(self, other: "LineageGraph") -> int:
+    def merge_in_place(self, other: LineageGraph) -> int:
         """Union ``other`` into ``self``. Returns number of newly added records."""
         added = 0
-        for nid, rec in other.records.items():
+        for rec in other.records.values():
             if self.add(rec):
                 added += 1
         return added
@@ -211,16 +213,13 @@ class LineageGraph:
     def ids(self) -> list[str]:
         return sorted(self.records)
 
-    def get(self, artifact_id: str) -> Optional[dict]:
+    def get(self, artifact_id: str) -> dict | None:
         return self.records.get(artifact_id)
 
     def children_of(self, parent_id: str) -> list[str]:
-        return sorted(
-            nid for nid, rec in self.records.items()
-            if rec["parent_id"] == parent_id
-        )
+        return sorted(nid for nid, rec in self.records.items() if rec["parent_id"] == parent_id)
 
-    def parent_of(self, artifact_id: str) -> Optional[str]:
+    def parent_of(self, artifact_id: str) -> str | None:
         rec = self.records.get(artifact_id)
         return rec["parent_id"] if rec else None
 
@@ -247,7 +246,7 @@ class LineageGraph:
 
     # ── sync (CRDT merge + fork report) ──
 
-    def sync(self, other: "LineageGraph") -> SyncProof:
+    def sync(self, other: LineageGraph) -> SyncProof:
         """
         Merge ``other`` into ``self`` (in place) and return a :class:`SyncProof`.
 

@@ -13,12 +13,10 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import base64
 import logging
-from typing import Optional
 
-from .models import KnowledgeArtifact, Lineage, ACL, SearchResponse, SearchResult
+from .models import KnowledgeArtifact, SearchResponse, SearchResult
 
 logger = logging.getLogger("kcp.hub")
 
@@ -58,6 +56,7 @@ class HubBackend:
         """Make HTTP request to hub."""
         try:
             import httpx
+
             resp = httpx.request(
                 method,
                 f"{self.url}{path}",
@@ -67,8 +66,8 @@ class HubBackend:
             )
             resp.raise_for_status()
             return resp.json()
-        except ImportError:
-            raise ImportError("httpx required for Hub backend. pip install httpx")
+        except ImportError as exc:
+            raise ImportError("httpx required for Hub backend. pip install httpx") from exc
 
     # ─── Same interface as LocalStore ──────────────────────────
 
@@ -76,7 +75,7 @@ class HubBackend:
         self,
         artifact: KnowledgeArtifact,
         content: bytes = b"",
-        derived_from: Optional[str] = None,
+        derived_from: str | None = None,
     ) -> KnowledgeArtifact:
         """Publish artifact to hub."""
         payload = artifact.to_dict()
@@ -88,7 +87,7 @@ class HubBackend:
         result = self._request("POST", "/kcp/v1/artifacts", json=payload)
         return KnowledgeArtifact.from_dict(result)
 
-    def get(self, artifact_id: str) -> Optional[KnowledgeArtifact]:
+    def get(self, artifact_id: str) -> KnowledgeArtifact | None:
         """Get artifact from hub."""
         try:
             data = self._request("GET", f"/kcp/v1/artifacts/{artifact_id}")
@@ -97,7 +96,7 @@ class HubBackend:
             logger.debug("Hub get failed for %s: %s", artifact_id[:8], e)
             return None
 
-    def get_content(self, content_hash: str) -> Optional[bytes]:
+    def get_content(self, content_hash: str) -> bytes | None:
         """Get content from hub by hash."""
         try:
             data = self._request("GET", f"/kcp/v1/content/{content_hash}")
@@ -120,7 +119,7 @@ class HubBackend:
     def search(
         self,
         query: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         limit: int = 20,
         offset: int = 0,
     ) -> SearchResponse:
@@ -133,14 +132,16 @@ class HubBackend:
 
         results = []
         for item in data.get("artifacts", data.get("results", [])):
-            results.append(SearchResult(
-                id=item["id"],
-                title=item["title"],
-                summary=item.get("summary", ""),
-                created_at=item.get("timestamp", ""),
-                relevance=item.get("relevance", 1.0),
-                format=item.get("format", ""),
-            ))
+            results.append(
+                SearchResult(
+                    id=item["id"],
+                    title=item["title"],
+                    summary=item.get("summary", ""),
+                    created_at=item.get("timestamp", ""),
+                    relevance=item.get("relevance", 1.0),
+                    format=item.get("format", ""),
+                )
+            )
 
         return SearchResponse(
             results=results,
@@ -150,10 +151,10 @@ class HubBackend:
 
     def list_artifacts(
         self,
-        tenant_id: Optional[str] = None,
-        user_id: Optional[str] = None,
-        tags: Optional[list[str]] = None,
-        format_filter: Optional[str] = None,
+        tenant_id: str | None = None,
+        user_id: str | None = None,
+        tags: list[str] | None = None,
+        format_filter: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> list[KnowledgeArtifact]:
@@ -169,10 +170,7 @@ class HubBackend:
             params["format"] = format_filter
 
         data = self._request("GET", "/kcp/v1/artifacts", params=params)
-        return [
-            KnowledgeArtifact.from_dict(a)
-            for a in data.get("artifacts", [])
-        ]
+        return [KnowledgeArtifact.from_dict(a) for a in data.get("artifacts", [])]
 
     def get_lineage(self, artifact_id: str) -> list[dict]:
         """Get lineage from hub."""
@@ -191,9 +189,16 @@ class HubBackend:
         return data.get("peers", [])
 
     def add_peer(self, peer_id: str, url: str, name: str = "", public_key: str = ""):
-        self._request("POST", "/kcp/v1/peers", json={
-            "id": peer_id, "url": url, "name": name, "public_key": public_key,
-        })
+        self._request(
+            "POST",
+            "/kcp/v1/peers",
+            json={
+                "id": peer_id,
+                "url": url,
+                "name": name,
+                "public_key": public_key,
+            },
+        )
 
     # ─── Stats ─────────────────────────────────────────────────
 

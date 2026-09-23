@@ -14,22 +14,23 @@ Usage:
 from __future__ import annotations
 
 import json
-import sqlite3
+import logging
 import os
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
+from .content_store import ContentStore
 from .models import (
     KnowledgeArtifact,
     SearchResponse,
     SearchResult,
-    normalize_expires_at,
     is_expired,
+    normalize_expires_at,
 )
-from .content_store import ContentStore
 from .vector_index import DEFAULT_VECTOR_BACKEND, VectorIndex
 
+logger = logging.getLogger("kcp.store")
 
 # ─── Schema ────────────────────────────────────────────────────
 
@@ -191,12 +192,12 @@ class LocalStore:
     def __init__(self, db_path: str = "~/.kcp/kcp.db", vector_backend: str = DEFAULT_VECTOR_BACKEND):
         self.db_path = Path(db_path).expanduser()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
         # Vector backend requested for the semantic index (see kcp.vector_index)
         self.vector_backend = vector_backend
         # Filesystem content store — sibling dir of the .db file
         self.content_store = ContentStore(self.db_path.parent)
-        self.vector_index: Optional[VectorIndex] = None
+        self.vector_index: VectorIndex | None = None
         self._init_db()
 
     def _init_db(self):
@@ -253,20 +254,12 @@ class LocalStore:
             if column not in cols:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_artifacts_canonical "
-            "ON kcp_artifacts(canonical_id)"
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_artifacts_status ON kcp_artifacts(status)"
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_artifacts_expires "
-            "ON kcp_artifacts(expires_at)"
-        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_canonical ON kcp_artifacts(canonical_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_status ON kcp_artifacts(status)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_expires ON kcp_artifacts(expires_at)")
         conn.commit()
 
-    def _sweep_expired(self, conn: Optional[sqlite3.Connection] = None) -> int:
+    def _sweep_expired(self, conn: sqlite3.Connection | None = None) -> int:
         """
         Lazily persist the ``active`` → ``expired`` transition.
 
@@ -296,7 +289,7 @@ class LocalStore:
         alias: str,
         include_superseded: bool,
         include_expired: bool,
-        status: Optional[str] = None,
+        status: str | None = None,
     ) -> tuple[list[str], list]:
         """Build SQL conditions restricting rows by lifecycle status.
 
@@ -331,13 +324,13 @@ class LocalStore:
                             content_text = raw.decode("utf-8", errors="ignore")[:50000]
                     else:
                         content_text = str(raw)[:50000]
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # índice FTS é best-effort: não falha o publish por causa dele
+                    logger.debug("FTS content index failed for %s: %s", row["id"], exc)
             conn.execute(
                 "INSERT OR REPLACE INTO kcp_fts (id, title, summary, tags, source, content_text) "
                 "VALUES (?, ?, ?, ?, ?, ?)",
-                (row["id"], row["title"], row["summary"] or "",
-                 row["tags"] or "", row["source"] or "", content_text),
+                (row["id"], row["title"], row["summary"] or "", row["tags"] or "", row["source"] or "", content_text),
             )
 
     def _get_conn(self) -> sqlite3.Connection:
@@ -364,10 +357,10 @@ class LocalStore:
         self,
         artifact: KnowledgeArtifact,
         content: bytes = b"",
-        derived_from: Optional[str] = None,
-        canonical_id: Optional[str] = None,
-        expires_at: Optional[str] = None,
-        status: Optional[str] = None,
+        derived_from: str | None = None,
+        canonical_id: str | None = None,
+        expires_at: str | None = None,
+        status: str | None = None,
     ) -> KnowledgeArtifact:
         """
         Store a knowledge artifact with its content.
@@ -388,9 +381,7 @@ class LocalStore:
 
         # ── Lifecycle / versioning resolution (issue #4) ──
         canonical_id = (
-            canonical_id
-            if canonical_id is not None
-            else (getattr(artifact, "canonical_id", "") or artifact.id)
+            canonical_id if canonical_id is not None else (getattr(artifact, "canonical_id", "") or artifact.id)
         )
         expires_at = normalize_expires_at(
             expires_at if expires_at is not None else getattr(artifact, "expires_at", None)
@@ -414,8 +405,7 @@ class LocalStore:
             )
             # Keep kcp_content as a lightweight index (hash + size, no blob)
             conn.execute(
-                "INSERT OR IGNORE INTO kcp_content (content_hash, content, size_bytes) "
-                "VALUES (?, ?, ?)",
+                "INSERT OR IGNORE INTO kcp_content (content_hash, content, size_bytes) VALUES (?, ?, ?)",
                 (artifact.content_hash, b"", len(content)),
             )
 
@@ -493,7 +483,7 @@ class LocalStore:
         artifact_id: str,
         include_superseded: bool = True,
         include_expired: bool = True,
-    ) -> Optional[KnowledgeArtifact]:
+    ) -> KnowledgeArtifact | None:
         """Retrieve artifact metadata by ID.
 
         By default returns the artifact whatever its lifecycle status
@@ -512,7 +502,7 @@ class LocalStore:
 
         return self._row_to_artifact(row)
 
-    def get_content(self, content_hash: str) -> Optional[bytes]:
+    def get_content(self, content_hash: str) -> bytes | None:
         """Retrieve raw content by hash — filesystem first, SQLite blob fallback."""
         # Primary: filesystem shard
         data = self.content_store.read(content_hash)
@@ -555,16 +545,16 @@ class LocalStore:
 
     def list_artifacts(
         self,
-        tenant_id: Optional[str] = None,
-        user_id: Optional[str] = None,
-        tags: Optional[list[str]] = None,
-        format_filter: Optional[str] = None,
+        tenant_id: str | None = None,
+        user_id: str | None = None,
+        tags: list[str] | None = None,
+        format_filter: str | None = None,
         limit: int = 50,
         offset: int = 0,
         include_superseded: bool = False,
         include_expired: bool = False,
-        canonical_id: Optional[str] = None,
-        status: Optional[str] = None,
+        canonical_id: str | None = None,
+        status: str | None = None,
     ) -> list[KnowledgeArtifact]:
         """List artifacts with optional filters.
 
@@ -576,9 +566,7 @@ class LocalStore:
         query = "SELECT * FROM kcp_artifacts WHERE deleted_at IS NULL"
         params: list = []
 
-        conds, cond_params = self._status_filters(
-            "kcp_artifacts", include_superseded, include_expired, status
-        )
+        conds, cond_params = self._status_filters("kcp_artifacts", include_superseded, include_expired, status)
         for cond in conds:
             query += f" AND {cond}"
         params.extend(cond_params)
@@ -609,13 +597,13 @@ class LocalStore:
     def search(
         self,
         query: str,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         limit: int = 20,
         offset: int = 0,
         include_superseded: bool = False,
         include_expired: bool = False,
-        canonical_id: Optional[str] = None,
-        status: Optional[str] = None,
+        canonical_id: str | None = None,
+        status: str | None = None,
     ) -> SearchResponse:
         """
         Full-text search across artifacts.
@@ -633,9 +621,7 @@ class LocalStore:
         self._sweep_expired(conn)
         start = datetime.now(timezone.utc)
 
-        status_conds, status_params = self._status_filters(
-            "a", include_superseded, include_expired, status
-        )
+        status_conds, status_params = self._status_filters("a", include_superseded, include_expired, status)
         status_sql = "".join(f" AND {c}" for c in status_conds)
 
         # Sanitize query for FTS5 — wrap multi-word in quotes to avoid syntax errors
@@ -712,9 +698,7 @@ class LocalStore:
                     relevance=round(relevance, 4),
                     format=row["format"],
                     status=row["status"] if "status" in row.keys() else "active",
-                    canonical_id=row["canonical_id"]
-                    if "canonical_id" in row.keys()
-                    else "",
+                    canonical_id=row["canonical_id"] if "canonical_id" in row.keys() else "",
                 )
             )
 
@@ -758,11 +742,11 @@ class LocalStore:
         self._audit("", "embedding:index", artifact_id)
         self._get_conn().commit()
 
-    def get_embedding(self, artifact_id: str, model: str = "hash") -> Optional[list[float]]:
+    def get_embedding(self, artifact_id: str, model: str = "hash") -> list[float] | None:
         """Return the stored embedding for ``(artifact_id, model)``, if any."""
         return self._index().get(artifact_id, model)
 
-    def drop_embedding(self, artifact_id: str, model: Optional[str] = None) -> int:
+    def drop_embedding(self, artifact_id: str, model: str | None = None) -> int:
         """Remove embeddings for an artifact (all models unless ``model`` is given)."""
         return self._index().drop(artifact_id, model)
 
@@ -780,12 +764,12 @@ class LocalStore:
         model: str = "hash",
         limit: int = 20,
         offset: int = 0,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         min_score: float = 0.0,
         include_superseded: bool = False,
         include_expired: bool = False,
-        canonical_id: Optional[str] = None,
-        status: Optional[str] = None,
+        canonical_id: str | None = None,
+        status: str | None = None,
     ) -> SearchResponse:
         """Rank artifacts by cosine similarity to ``vector`` (every stored vector is scanned).
 
@@ -818,9 +802,7 @@ class LocalStore:
             if canonical_id:
                 sql += " AND COALESCE(a.canonical_id, a.id) = ?"
                 params.append(canonical_id)
-            status_conds, status_params = self._status_filters(
-                "a", include_superseded, include_expired, status
-            )
+            status_conds, status_params = self._status_filters("a", include_superseded, include_expired, status)
             for cond in status_conds:
                 sql += f" AND {cond}"
             params.extend(status_params)
@@ -863,10 +845,10 @@ class LocalStore:
         alpha: float = 0.5,
         limit: int = 20,
         offset: int = 0,
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
         include_superseded: bool = False,
         include_expired: bool = False,
-        canonical_id: Optional[str] = None,
+        canonical_id: str | None = None,
     ) -> SearchResponse:
         """Fuse BM25 (FTS5) and cosine similarity into a single ranking.
 
@@ -968,13 +950,15 @@ class LocalStore:
             if not row:
                 break
 
-            chain.append({
-                "id": row["id"],
-                "title": row["title"],
-                "author": row["user_id"],
-                "created_at": row["created_at"],
-                "derived_from": row["derived_from"],
-            })
+            chain.append(
+                {
+                    "id": row["id"],
+                    "title": row["title"],
+                    "author": row["user_id"],
+                    "created_at": row["created_at"],
+                    "derived_from": row["derived_from"],
+                }
+            )
             current_id = row["derived_from"]
 
         chain.reverse()  # Root first
@@ -1018,13 +1002,12 @@ class LocalStore:
             (artifact_id,),
         ).fetchall()
         return [
-            {"id": r["id"], "title": r["title"], "author": r["user_id"], "created_at": r["created_at"]}
-            for r in rows
+            {"id": r["id"], "title": r["title"], "author": r["user_id"], "created_at": r["created_at"]} for r in rows
         ]
 
     # ─── Versioning & TTL (issue #4) ───────────────────────────
 
-    def resolve_canonical_id(self, artifact_id: str) -> Optional[str]:
+    def resolve_canonical_id(self, artifact_id: str) -> str | None:
         """Return the canonical id of an artifact (itself if standalone)."""
         conn = self._get_conn()
         row = conn.execute(
@@ -1075,7 +1058,7 @@ class LocalStore:
         conn.commit()
         return cursor.rowcount
 
-    def expire_artifact(self, artifact_id: str, expires_at: Optional[str] = None) -> bool:
+    def expire_artifact(self, artifact_id: str, expires_at: str | None = None) -> bool:
         """Force an artifact into ``expired`` status (optionally setting expires_at)."""
         conn = self._get_conn()
         if expires_at is not None:
@@ -1091,7 +1074,7 @@ class LocalStore:
         conn.commit()
         return True
 
-    def get_current(self, canonical_id: str) -> Optional[KnowledgeArtifact]:
+    def get_current(self, canonical_id: str) -> KnowledgeArtifact | None:
         """
         Return the most recent ACTIVE version of a canonical artifact.
 
@@ -1137,17 +1120,14 @@ class LocalStore:
         )
         conn.commit()
 
-    def upsert_peer(self, url: str, name: str = "", node_id: str = "",
-                    public_key: str = "", artifact_count: int = 0):
+    def upsert_peer(self, url: str, name: str = "", node_id: str = "", public_key: str = "", artifact_count: int = 0):
         """
         Insert or update a peer by URL.
         Used for gossip-discovered peers — no pre-assigned ID needed.
         """
         conn = self._get_conn()
         now = datetime.now(timezone.utc).isoformat()
-        existing = conn.execute(
-            "SELECT id FROM kcp_peers WHERE url = ?", (url,)
-        ).fetchone()
+        existing = conn.execute("SELECT id FROM kcp_peers WHERE url = ?", (url,)).fetchone()
         if existing:
             conn.execute(
                 "UPDATE kcp_peers SET "
@@ -1160,10 +1140,10 @@ class LocalStore:
             )
         else:
             import uuid
+
             peer_id = node_id or str(uuid.uuid4())
             conn.execute(
-                "INSERT INTO kcp_peers (id, url, name, public_key, last_seen, added_at) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO kcp_peers (id, url, name, public_key, last_seen, added_at) VALUES (?, ?, ?, ?, ?, ?)",
                 (peer_id, url, name, public_key, now, now),
             )
         conn.commit()
@@ -1190,7 +1170,7 @@ class LocalStore:
 
     # ─── Sync ──────────────────────────────────────────────────
 
-    def get_artifact_ids_since(self, since: Optional[str] = None) -> list[str]:
+    def get_artifact_ids_since(self, since: str | None = None) -> list[str]:
         """Get artifact IDs created after a given timestamp (for sync).
         Only returns public artifacts — private/org/team are never synced.
         """
@@ -1203,12 +1183,11 @@ class LocalStore:
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT id FROM kcp_artifacts WHERE deleted_at IS NULL "
-                "AND visibility = 'public' ORDER BY created_at"
+                "SELECT id FROM kcp_artifacts WHERE deleted_at IS NULL AND visibility = 'public' ORDER BY created_at"
             ).fetchall()
         return [r["id"] for r in rows]
 
-    def get_artifact_with_content(self, artifact_id: str) -> Optional[dict]:
+    def get_artifact_with_content(self, artifact_id: str) -> dict | None:
         """Get artifact metadata + content for sync export."""
         conn = self._get_conn()
         row = conn.execute(
@@ -1228,15 +1207,14 @@ class LocalStore:
 
         if content:
             import base64
+
             result["_content_b64"] = base64.b64encode(content).decode("utf-8")
         return result
 
     def import_artifact(self, data: dict) -> bool:
         """Import an artifact from sync (peer push). Returns True if new."""
         conn = self._get_conn()
-        existing = conn.execute(
-            "SELECT id FROM kcp_artifacts WHERE id = ?", (data["id"],)
-        ).fetchone()
+        existing = conn.execute("SELECT id FROM kcp_artifacts WHERE id = ?", (data["id"],)).fetchone()
 
         if existing:
             return False  # Already have it
@@ -1245,6 +1223,7 @@ class LocalStore:
         content = b""
         if "_content_b64" in data:
             import base64
+
             content = base64.b64decode(data["_content_b64"])
 
         self.publish(artifact, content=content, derived_from=data.get("derived_from"))
@@ -1279,12 +1258,8 @@ class LocalStore:
     def stats(self) -> dict:
         """Get storage statistics."""
         conn = self._get_conn()
-        artifacts = conn.execute(
-            "SELECT COUNT(*) as c FROM kcp_artifacts WHERE deleted_at IS NULL"
-        ).fetchone()["c"]
-        content_size = conn.execute(
-            "SELECT COALESCE(SUM(size_bytes), 0) as s FROM kcp_content"
-        ).fetchone()["s"]
+        artifacts = conn.execute("SELECT COUNT(*) as c FROM kcp_artifacts WHERE deleted_at IS NULL").fetchone()["c"]
+        content_size = conn.execute("SELECT COALESCE(SUM(size_bytes), 0) as s FROM kcp_content").fetchone()["s"]
         peers = conn.execute("SELECT COUNT(*) as c FROM kcp_peers").fetchone()["c"]
         db_size = os.path.getsize(str(self.db_path)) if self.db_path.exists() else 0
         fs_stats = self.content_store.stats()
@@ -1320,12 +1295,11 @@ class LocalStore:
         The row itself is kept (with content=b'') so size_bytes stays accurate.
         """
         import logging
+
         log = logging.getLogger("kcp.store.migrate")
 
         # Find rows that still have a real BLOB (non-empty content)
-        rows = conn.execute(
-            "SELECT content_hash, content FROM kcp_content WHERE length(content) > 0"
-        ).fetchall()
+        rows = conn.execute("SELECT content_hash, content FROM kcp_content WHERE length(content) > 0").fetchall()
 
         if not rows:
             return  # Nothing to migrate
@@ -1361,7 +1335,6 @@ class LocalStore:
 
     def _row_to_artifact(self, row: sqlite3.Row) -> KnowledgeArtifact:
         """Convert a database row to KnowledgeArtifact."""
-        from .models import Lineage, ACL
 
         data = dict(row)
         data["tags"] = json.loads(data.get("tags") or "[]")
@@ -1438,7 +1411,8 @@ class LocalStore:
             return []
         ids = [r["id"] for r in rows]
         conn.execute(
-            f"UPDATE kcp_sync_queue SET status = 'in_flight', last_attempt = ? "
+            # placeholders são todos "?" gerados por len(ids) — sem interpolação de dados
+            f"UPDATE kcp_sync_queue SET status = 'in_flight', last_attempt = ? "  # noqa: S608  # nosec B608
             f"WHERE id IN ({','.join('?' * len(ids))})",
             [now] + ids,
         )
@@ -1450,9 +1424,7 @@ class LocalStore:
         conn = self._get_conn()
         now = datetime.now(timezone.utc).isoformat()
         # Fetch artifact_id + peer_url before updating
-        row = conn.execute(
-            "SELECT artifact_id, peer_url FROM kcp_sync_queue WHERE id = ?", (queue_id,)
-        ).fetchone()
+        row = conn.execute("SELECT artifact_id, peer_url FROM kcp_sync_queue WHERE id = ?", (queue_id,)).fetchone()
         conn.execute(
             "UPDATE kcp_sync_queue SET status = 'done', acked_at = ?, error = NULL WHERE id = ?",
             (now, queue_id),
@@ -1471,9 +1443,7 @@ class LocalStore:
         After max_attempts, marks as permanently failed.
         """
         conn = self._get_conn()
-        row = conn.execute(
-            "SELECT attempts FROM kcp_sync_queue WHERE id = ?", (queue_id,)
-        ).fetchone()
+        row = conn.execute("SELECT attempts FROM kcp_sync_queue WHERE id = ?", (queue_id,)).fetchone()
         if not row:
             return
 
@@ -1490,10 +1460,10 @@ class LocalStore:
             delays = [30, 120, 600, 3600, 21600, 86400]
             delay = delays[min(attempts - 1, len(delays) - 1)]
             from datetime import timedelta
+
             next_attempt = (now + timedelta(seconds=delay)).isoformat()
             conn.execute(
-                "UPDATE kcp_sync_queue SET status = 'pending', attempts = ?, "
-                "error = ?, next_attempt = ? WHERE id = ?",
+                "UPDATE kcp_sync_queue SET status = 'pending', attempts = ?, error = ?, next_attempt = ? WHERE id = ?",
                 (attempts, error, next_attempt, queue_id),
             )
         conn.commit()
@@ -1567,4 +1537,3 @@ class LocalStore:
             "SELECT artifact_id, COUNT(*) as peer_count FROM kcp_replication GROUP BY artifact_id"
         ).fetchall()
         return {r["artifact_id"]: r["peer_count"] for r in rows}
-

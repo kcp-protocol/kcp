@@ -38,7 +38,6 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass, field
-from typing import Optional
 
 # ─── Constants ────────────────────────────────────────────────
 
@@ -52,6 +51,7 @@ class LineageVerificationError(Exception):
 
 
 # ─── Canonical record + hashing ───────────────────────────────
+
 
 def normalize_record(record: dict) -> dict:
     """
@@ -87,7 +87,7 @@ def leaf_hash(record: dict) -> str:
     return hashlib.sha256(LEAF_PREFIX + canonical_record(record)).hexdigest()
 
 
-def node_hash(record: dict, child_hashes: Optional[list[str]] = None) -> str:
+def node_hash(record: dict, child_hashes: list[str] | None = None) -> str:
     """
     Merkle node hash = H(0x01 || canonical(record) || sorted(child_hashes)).
 
@@ -101,6 +101,7 @@ def node_hash(record: dict, child_hashes: Optional[list[str]] = None) -> str:
 
 
 # ─── Merkle proof ─────────────────────────────────────────────
+
 
 @dataclass
 class MerkleProof:
@@ -174,14 +175,11 @@ class MerkleProof:
             "leaf_children": list(self.leaf_children),
             "root_id": self.root_id,
             "root_hash": self.root_hash,
-            "path": [
-                {"node": normalize_record(s["node"]), "siblings": list(s.get("siblings", []))}
-                for s in self.path
-            ],
+            "path": [{"node": normalize_record(s["node"]), "siblings": list(s.get("siblings", []))} for s in self.path],
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "MerkleProof":
+    def from_dict(cls, data: dict) -> MerkleProof:
         return cls(
             leaf=data["leaf"],
             leaf_children=list(data.get("leaf_children", [])),
@@ -205,6 +203,7 @@ def verify_proof(proof: MerkleProof | dict) -> bool:
 
 # ─── Merkle DAG ───────────────────────────────────────────────
 
+
 class MerkleDAG:
     """
     Content-addressed Merkle DAG over a set of artifact records.
@@ -214,7 +213,7 @@ class MerkleDAG:
     ``user_id``.
     """
 
-    def __init__(self, records: Optional[list[dict]] = None):
+    def __init__(self, records: list[dict] | None = None):
         self.records: dict[str, dict] = {}
         self.children: dict[str, list[str]] = {}
         self._hash_cache: dict[str, str] = {}
@@ -246,8 +245,9 @@ class MerkleDAG:
 
     def roots(self) -> list[str]:
         """Nodes with no parent present in the DAG (chain heads)."""
-        return sorted(nid for nid, rec in self.records.items()
-                      if not rec["parent_id"] or rec["parent_id"] not in self.records)
+        return sorted(
+            nid for nid, rec in self.records.items() if not rec["parent_id"] or rec["parent_id"] not in self.records
+        )
 
     # ── hashing ──
 
@@ -279,7 +279,7 @@ class MerkleDAG:
         """Ordered chain [node_id, parent, grandparent, …, head]."""
         chain: list[str] = []
         seen: set[str] = set()
-        current: Optional[str] = node_id
+        current: str | None = node_id
         while current and current in self.records and current not in seen:
             seen.add(current)
             chain.append(current)
@@ -304,9 +304,7 @@ class MerkleDAG:
 
         chain = self.ancestors(leaf_id)
         if root_id not in chain:
-            raise LineageVerificationError(
-                f"{root_id} is not an ancestor of {leaf_id}"
-            )
+            raise LineageVerificationError(f"{root_id} is not an ancestor of {leaf_id}")
 
         leaf = self.records[leaf_id]
         leaf_children = [self.node_hash(c) for c in self.children.get(leaf_id, [])]
@@ -319,11 +317,7 @@ class MerkleDAG:
             while idx < len(chain):
                 ancestor_id = chain[idx]
                 ancestor = self.records[ancestor_id]
-                siblings = [
-                    self.node_hash(c)
-                    for c in self.children.get(ancestor_id, [])
-                    if c != child_on_path
-                ]
+                siblings = [self.node_hash(c) for c in self.children.get(ancestor_id, []) if c != child_on_path]
                 path.append({"node": ancestor, "siblings": siblings})
                 child_on_path = ancestor_id
                 idx += 1
@@ -347,7 +341,5 @@ class MerkleDAG:
         """
         proof = self.build_proof(leaf_id, root_id)
         if not proof.verify():
-            raise LineageVerificationError(
-                f"proof failed verification: {leaf_id} ⇒ {root_id}"
-            )
+            raise LineageVerificationError(f"proof failed verification: {leaf_id} ⇒ {root_id}")
         return proof

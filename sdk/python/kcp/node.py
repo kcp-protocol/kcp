@@ -30,37 +30,42 @@ Usage (with HTTP server for P2P/sharing):
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
 import os
-import json
-import base64
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
-from .models import (
-    KnowledgeArtifact,
-    Lineage,
-    ACL,
-    SearchResponse,
-    normalize_expires_at,
-    LIFECYCLE_FIELDS,
-)
 from .crypto import (
-    generate_keypair, sign_artifact, verify_artifact, hash_content,
-    encrypt_content, decrypt_content, derive_content_key, is_encrypted,
+    decrypt_content,
+    derive_content_key,
+    encrypt_content,
+    generate_keypair,
+    hash_content,
+    is_encrypted,
+    sign_artifact,
+    verify_artifact,
 )
-from .store import LocalStore
-from .sync_worker import SyncWorker
-from .lineage_graph import LineageGraph, ForkPair, SyncProof
-from .merkle import MerkleProof
 from .embeddings import (
     BaseEmbeddingProvider,
     EmbeddingError,
     SemanticSearchUnavailableError,
     resolve_embedding_provider,
 )
+from .lineage_graph import ForkPair, LineageGraph, SyncProof
+from .merkle import MerkleProof
+from .models import (
+    LIFECYCLE_FIELDS,
+    KnowledgeArtifact,
+    Lineage,
+    SearchResponse,
+    normalize_expires_at,
+)
+from .store import LocalStore
+from .sync_worker import SyncWorker
 from .vector_index import BRUTEFORCE_BACKEND, DEFAULT_VECTOR_BACKEND, LOCAL_BACKENDS
 
 logger = logging.getLogger("kcp.node")
@@ -87,7 +92,7 @@ class KCPNode:
         keys_dir: str = "~/.kcp/keys",
         search_backend: str = "fts5",
         embedding_model: Any = "hash",
-        embedder: Optional[Any] = None,
+        embedder: Any | None = None,
     ):
         """Create an embedded node.
 
@@ -114,8 +119,8 @@ class KCPNode:
         """
         self.search_backend = (search_backend or "fts5").strip().lower()
         self.embedding_model = embedder if embedder is not None else embedding_model
-        self._embedding_provider: Optional[BaseEmbeddingProvider] = None
-        self._last_embedding_error: Optional[str] = None
+        self._embedding_provider: BaseEmbeddingProvider | None = None
+        self._last_embedding_error: str | None = None
         self._enable_vector = self._resolve_search_backend(
             explicit_embedder=embedder is not None or self.embedding_model not in (None, "hash")
         )
@@ -147,7 +152,7 @@ class KCPNode:
         # Peer sync — parse KCP_PEERS=url1,url2 and start background worker
         raw_peers = os.environ.get("KCP_PEERS", "")
         self.peers: list[str] = [p.strip() for p in raw_peers.split(",") if p.strip()]
-        self._sync_worker: Optional[SyncWorker] = None
+        self._sync_worker: SyncWorker | None = None
         self._port: int = 0  # set by serve(); used by network-status for localhost probing
         if self.peers:
             self._sync_worker = SyncWorker(self.store, self.peers)
@@ -286,7 +291,7 @@ class KCPNode:
             logger.info("backfilled %d embedding(s) for model %s", count, self.embedding_model_name)
         return count
 
-    def reindex(self, force: bool = False, limit: Optional[int] = None) -> dict:
+    def reindex(self, force: bool = False, limit: int | None = None) -> dict:
         """(Re)build embeddings for stored artifacts.
 
         Args:
@@ -330,16 +335,16 @@ class KCPNode:
         title: str,
         content: bytes | str,
         format: str = "markdown",
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
         summary: str = "",
         visibility: str = "public",
-        derived_from: Optional[str] = None,
+        derived_from: str | None = None,
         source: str = "",
-        lineage: Optional[Lineage] = None,
-        ttl_seconds: Optional[int] = None,
-        expires_at: Optional[str] = None,
-        canonical_id: Optional[str] = None,
-        version: Optional[str] = None,
+        lineage: Lineage | None = None,
+        ttl_seconds: int | None = None,
+        expires_at: str | None = None,
+        canonical_id: str | None = None,
+        version: str | None = None,
         status: str = "active",
     ) -> KnowledgeArtifact:
         """
@@ -380,6 +385,7 @@ class KCPNode:
         if visibility == "private":
             # Derive a temporary ID for HKDF — will be replaced after artifact is created
             import uuid
+
             temp_id = str(uuid.uuid4())
             content_key = derive_content_key(self.private_key, temp_id)
             stored_content = encrypt_content(content, content_key)
@@ -432,9 +438,7 @@ class KCPNode:
         return artifact
 
     @staticmethod
-    def _resolve_expires_at(
-        ttl_seconds: Optional[int], expires_at: Optional[str]
-    ) -> Optional[str]:
+    def _resolve_expires_at(ttl_seconds: int | None, expires_at: str | None) -> str | None:
         """Resolve a TTL deadline from ``ttl_seconds`` and/or ``expires_at``.
 
         An explicit ``expires_at`` always wins; otherwise it is computed as
@@ -449,17 +453,17 @@ class KCPNode:
     def publish_version(
         self,
         artifact_id: str,
-        title: Optional[str] = None,
-        content: Optional[bytes | str] = None,
-        format: Optional[str] = None,
-        tags: Optional[list[str]] = None,
-        summary: Optional[str] = None,
-        visibility: Optional[str] = None,
-        source: Optional[str] = None,
-        lineage: Optional[Lineage] = None,
-        derived_from: Optional[str] = None,
-        ttl_seconds: Optional[int] = None,
-        expires_at: Optional[str] = None,
+        title: str | None = None,
+        content: bytes | str | None = None,
+        format: str | None = None,
+        tags: list[str] | None = None,
+        summary: str | None = None,
+        visibility: str | None = None,
+        source: str | None = None,
+        lineage: Lineage | None = None,
+        derived_from: str | None = None,
+        ttl_seconds: int | None = None,
+        expires_at: str | None = None,
     ) -> KnowledgeArtifact:
         """
         Publish a new version of an existing artifact.
@@ -509,12 +513,10 @@ class KCPNode:
         )
 
         # The previous version(s) are no longer current.
-        self.store.supersede_versions(
-            canonical_id, superseded_by=new_artifact.id, except_id=new_artifact.id
-        )
+        self.store.supersede_versions(canonical_id, superseded_by=new_artifact.id, except_id=new_artifact.id)
         return new_artifact
 
-    def get_current(self, canonical_id: str) -> Optional[KnowledgeArtifact]:
+    def get_current(self, canonical_id: str) -> KnowledgeArtifact | None:
         """Return the most recent active version of a canonical artifact."""
         return self.store.get_current(canonical_id)
 
@@ -522,11 +524,11 @@ class KCPNode:
         """List every version of a canonical artifact, oldest → newest."""
         return self.store.get_versions(canonical_id)
 
-    def get(self, artifact_id: str) -> Optional[KnowledgeArtifact]:
+    def get(self, artifact_id: str) -> KnowledgeArtifact | None:
         """Get artifact by ID."""
         return self.store.get(artifact_id)
 
-    def get_content(self, artifact_id: str) -> Optional[bytes]:
+    def get_content(self, artifact_id: str) -> bytes | None:
         """Get raw content for an artifact — decrypts private artifacts automatically."""
         artifact = self.store.get(artifact_id)
         if not artifact:
@@ -560,7 +562,7 @@ class KCPNode:
         alpha: float = 0.5,
         include_superseded: bool = False,
         include_expired: bool = False,
-        canonical_id: Optional[str] = None,
+        canonical_id: str | None = None,
     ) -> SearchResponse:
         """Search artifacts by text (keyword), vector similarity or both.
 
@@ -615,7 +617,7 @@ class KCPNode:
     def list(
         self,
         limit: int = 50,
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
         include_superseded: bool = False,
         include_expired: bool = False,
     ) -> list[KnowledgeArtifact]:
@@ -675,7 +677,7 @@ class KCPNode:
         """Digest of the whole local lineage DAG (converges across synced nodes)."""
         return self.lineage_graph().global_root_hash()
 
-    def verify(self, artifact: KnowledgeArtifact, public_key: Optional[bytes] = None) -> bool:
+    def verify(self, artifact: KnowledgeArtifact, public_key: bytes | None = None) -> bool:
         """Verify artifact signature."""
         key = public_key or self.public_key
         return verify_artifact(artifact.to_dict(), key)
@@ -732,7 +734,7 @@ class KCPNode:
 
     # ─── Peer / Sync ──────────────────────────────────────────
 
-    def sync(self, other: "KCPNode") -> SyncProof:
+    def sync(self, other: KCPNode) -> SyncProof:
         """
         Merge another node's artifacts into this one (CRDT G-Set union) and
         report lineage conflicts.
@@ -861,9 +863,9 @@ class KCPNode:
         return os.environ.get("KCP_SELF_URL", "").rstrip("/")
 
     # Header sent on all outbound peer requests — required by public peers
-    _KCP_CLIENT_HEADER = {"X-KCP-Client": f"kcp-python/0.2.0"}
+    _KCP_CLIENT_HEADER = {"X-KCP-Client": "kcp-python/0.2.0"}
 
-    def sync_push(self, peer_url: str, since: Optional[str] = None) -> dict:
+    def sync_push(self, peer_url: str, since: str | None = None) -> dict:
         """Push local artifacts to a peer."""
         try:
             import httpx
@@ -891,7 +893,7 @@ class KCPNode:
 
         return {"pushed": pushed, "total": len(ids)}
 
-    def sync_pull(self, peer_url: str, since: Optional[str] = None) -> dict:
+    def sync_pull(self, peer_url: str, since: str | None = None) -> dict:
         """Pull artifacts from a peer."""
         try:
             import httpx
@@ -937,14 +939,14 @@ class KCPNode:
     def create_app(self):
         """Create FastAPI app for HTTP serving (P2P + Web UI)."""
         try:
-            from fastapi import FastAPI, HTTPException, Request, Header, Depends
+            from fastapi import Depends, FastAPI, Header, HTTPException
             from fastapi.middleware.cors import CORSMiddleware
             from fastapi.responses import HTMLResponse, JSONResponse
-        except ImportError:
-            raise ImportError("FastAPI required for HTTP serving. pip install fastapi uvicorn")
+        except ImportError as exc:
+            raise ImportError("FastAPI required for HTTP serving. pip install fastapi uvicorn") from exc
 
         app = FastAPI(title="KCP Node", version="0.2.0")
-        
+
         # Enable CORS for /kcp/v1/network-status (browser fetch from kcp-protocol.org)
         app.add_middleware(
             CORSMiddleware,
@@ -954,8 +956,8 @@ class KCPNode:
         )
 
         def _caller_identity(
-            x_kcp_user_id: Optional[str] = Header(default=None, alias="X-KCP-User-ID"),
-            x_kcp_tenant: Optional[str] = Header(default=None, alias="X-KCP-Tenant"),
+            x_kcp_user_id: str | None = Header(default=None, alias="X-KCP-User-ID"),
+            x_kcp_tenant: str | None = Header(default=None, alias="X-KCP-Tenant"),
         ) -> tuple:
             """Extract caller identity from request headers."""
             return (
@@ -993,8 +995,8 @@ class KCPNode:
         @app.get("/kcp/v1/artifacts")
         def list_artifacts(
             limit: int = 50,
-            q: Optional[str] = None,
-            tags: Optional[str] = None,
+            q: str | None = None,
+            tags: str | None = None,
             include_superseded: bool = False,
             include_expired: bool = False,
             caller: tuple = Depends(_caller_identity),
@@ -1008,7 +1010,9 @@ class KCPNode:
                     include_superseded=include_superseded,
                     include_expired=include_expired,
                 )
-                visible = [r for r in resp.results if (a := self.get(r.id)) and _can_read(a, caller_user, caller_tenant)]
+                visible = [
+                    r for r in resp.results if (a := self.get(r.id)) and _can_read(a, caller_user, caller_tenant)
+                ]
                 resp.results = visible
                 resp.total = len(visible)
                 return resp.__dict__
@@ -1122,7 +1126,7 @@ class KCPNode:
 
         # Sync endpoints
         @app.get("/kcp/v1/sync/list")
-        def sync_list(since: Optional[str] = None):
+        def sync_list(since: str | None = None):
             ids = self.store.get_artifact_ids_since(since)
             return {"ids": ids, "total": len(ids)}
 
@@ -1141,17 +1145,17 @@ class KCPNode:
             """
             artifact_id = body.get("id", "")
             is_new = self.store.import_artifact(body)
-            
+
             # Record replication ACK (sender identified via user_id in payload)
             if artifact_id:
                 try:
                     # Use peer's user_id from payload as identifier
                     sender_id = body.get("user_id", "unknown")
                     self.store.record_replication_ack(artifact_id, sender_id)
-                except Exception:
+                except Exception as exc:
                     # Don't fail sync if ACK recording fails
-                    pass
-            
+                    logger.debug("replication ACK recording failed for %s: %s", artifact_id, exc)
+
             return {"accepted": is_new, "id": artifact_id}
 
         # Peers — discovery & registry
@@ -1164,13 +1168,15 @@ class KCPNode:
             raw = self.get_peers()
             peers_out = []
             for p in raw:
-                peers_out.append({
-                    "node_id": p.get("id", ""),
-                    "url": p.get("url", ""),
-                    "name": p.get("name", ""),
-                    "last_seen": p.get("last_seen", ""),
-                    "added_at": p.get("added_at", ""),
-                })
+                peers_out.append(
+                    {
+                        "node_id": p.get("id", ""),
+                        "url": p.get("url", ""),
+                        "name": p.get("name", ""),
+                        "last_seen": p.get("last_seen", ""),
+                        "added_at": p.get("added_at", ""),
+                    }
+                )
             # Also expose self so other peers can learn about us
             self_url = self._self_url()
             if self_url:
@@ -1218,9 +1224,9 @@ class KCPNode:
             directly — this node probes them internally (localhost or LAN) and
             returns a single JSON payload with CORS headers.
             """
-            import urllib.request
-            import urllib.error
             import time
+            import urllib.error
+            import urllib.request
 
             # Build probe list: self (via localhost) + all known peers
             known = self.store.get_peers()
@@ -1229,16 +1235,18 @@ class KCPNode:
 
             # Probe self via localhost if port is known (no DNS needed)
             self_probe_url = self_public_url
-            if hasattr(self, '_port') and self._port:
+            if hasattr(self, "_port") and self._port:
                 self_probe_url = f"http://127.0.0.1:{self._port}"
 
             probe_urls: list[dict] = []
             if self_probe_url:
-                probe_urls.append({
-                    "url": self_probe_url,
-                    "display_url": self_public_url or self_probe_url,
-                    "name": "self",
-                })
+                probe_urls.append(
+                    {
+                        "url": self_probe_url,
+                        "display_url": self_public_url or self_probe_url,
+                        "name": "self",
+                    }
+                )
             for p in known:
                 u = p.get("url", "").rstrip("/")
                 if u and u != self_url.rstrip("/"):
@@ -1250,29 +1258,36 @@ class KCPNode:
                 display_url = entry.get("display_url", entry["url"])
                 t0 = time.monotonic()
                 try:
-                    req = urllib.request.Request(probe_url, headers={"User-Agent": "kcp-network-status/1.0"})
-                    with urllib.request.urlopen(req, timeout=5) as resp:
+                    # probe_url vem do registry de peers (http/https apenas)
+                    req = urllib.request.Request(  # noqa: S310
+                        probe_url, headers={"User-Agent": "kcp-network-status/1.0"}
+                    )
+                    with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310  # nosec B310
                         ms = int((time.monotonic() - t0) * 1000)
                         data = json.loads(resp.read().decode())
-                        results.append({
-                            "name": entry["name"],
-                            "url": display_url,
-                            "status": "online",
-                            "latency_ms": ms,
-                            "node_id": data.get("node_id", ""),
-                            "artifacts": data.get("artifacts"),
-                            "peers": data.get("peers"),
-                            "kcp_version": data.get("kcp_version", ""),
-                        })
+                        results.append(
+                            {
+                                "name": entry["name"],
+                                "url": display_url,
+                                "status": "online",
+                                "latency_ms": ms,
+                                "node_id": data.get("node_id", ""),
+                                "artifacts": data.get("artifacts"),
+                                "peers": data.get("peers"),
+                                "kcp_version": data.get("kcp_version", ""),
+                            }
+                        )
                 except Exception as e:
                     ms = int((time.monotonic() - t0) * 1000)
-                    results.append({
-                        "name": entry["name"],
-                        "url": display_url,
-                        "status": "offline",
-                        "latency_ms": ms,
-                        "error": str(e)[:120],
-                    })
+                    results.append(
+                        {
+                            "name": entry["name"],
+                            "url": display_url,
+                            "status": "offline",
+                            "latency_ms": ms,
+                            "error": str(e)[:120],
+                        }
+                    )
 
             online = sum(1 for r in results if r["status"] == "online")
             total = len(results)
@@ -1294,12 +1309,12 @@ class KCPNode:
 
         return app
 
-    def serve(self, host: str = "0.0.0.0", port: int = 8800):
+    def serve(self, host: str = "0.0.0.0", port: int = 8800):  # noqa: S104  # nosec B104 — nó P2P escuta em todas as interfaces
         """Start HTTP server for P2P sharing and Web UI."""
         try:
             import uvicorn
-        except ImportError:
-            raise ImportError("uvicorn required. pip install uvicorn")
+        except ImportError as exc:
+            raise ImportError("uvicorn required. pip install uvicorn") from exc
 
         self._port = port  # stored so network-status can probe self via localhost
         app = self.create_app()
@@ -1336,7 +1351,6 @@ class KCPNode:
             self.store.set_config("node_id", nid)
         return nid
 
-
     # ─── Export / Import (offline sharing) ─────────────────────
 
     def export_artifact(self, artifact_id: str, include_content: bool = True) -> dict | None:
@@ -1353,9 +1367,7 @@ class KCPNode:
         export["_kcp_export"] = {
             "version": "1",
             "exported_by": self.user_id,
-            "exported_at": __import__("datetime").datetime.now(
-                __import__("datetime").timezone.utc
-            ).isoformat(),
+            "exported_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
             "node_id": self.node_id,
             "public_key": self.public_key.hex(),
         }
@@ -1364,6 +1376,7 @@ class KCPNode:
             content = self.store.get_content(artifact.content_hash)
             if content:
                 import base64
+
                 export["_content_b64"] = base64.b64encode(content).decode("utf-8")
 
         # Include lineage chain
@@ -1382,15 +1395,12 @@ class KCPNode:
         if not output_path:
             slug = data.get("title", "artifact").lower()
             slug = __import__("re").sub(r"[^a-z0-9]+", "-", slug).strip("-")[:50]
-            output_path = str(
-                __import__("pathlib").Path.home() / "Downloads" / f"kcp-{slug}.json"
-            )
+            output_path = str(__import__("pathlib").Path.home() / "Downloads" / f"kcp-{slug}.json")
 
         import json
+
         __import__("pathlib").Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        __import__("pathlib").Path(output_path).write_text(
-            json.dumps(data, indent=2, ensure_ascii=False)
-        )
+        __import__("pathlib").Path(output_path).write_text(json.dumps(data, indent=2, ensure_ascii=False))
         return output_path
 
     def import_from_dict(self, data: dict, verify: bool = True) -> tuple[bool, str]:
@@ -1410,11 +1420,8 @@ class KCPNode:
                 try:
                     pub_key = bytes.fromhex(pub_hex)
                     from .crypto import verify_artifact
-                    clean = {
-                        k: v
-                        for k, v in data.items()
-                        if not k.startswith("_") and k not in LIFECYCLE_FIELDS
-                    }
+
+                    clean = {k: v for k, v in data.items() if not k.startswith("_") and k not in LIFECYCLE_FIELDS}
                     if not verify_artifact(clean, pub_key):
                         return False, "⚠️ Signature verification FAILED. Artifact may be tampered."
                 except Exception as e:
@@ -1430,6 +1437,7 @@ class KCPNode:
     def import_from_file(self, file_path: str, verify: bool = True) -> tuple[bool, str]:
         """Import artifact from a JSON file."""
         import json
+
         content = __import__("pathlib").Path(file_path).read_text()
         data = json.loads(content)
         return self.import_from_dict(data, verify=verify)

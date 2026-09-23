@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 import requests
@@ -28,9 +27,9 @@ logger = logging.getLogger("kcp.sync")
 # queue_depth  →  (batch_size, interval_seconds)
 #
 _BATCH_POLICY = [
-    (10,   1,  5),    # ≤10 pending   → batch=1,  every 5s  (feels instant)
-    (100,  10, 30),   # ≤100 pending  → batch=10, every 30s
-    (1000, 50, 60),   # ≤1000 pending → batch=50, every 60s
+    (10, 1, 5),  # ≤10 pending   → batch=1,  every 5s  (feels instant)
+    (100, 10, 30),  # ≤100 pending  → batch=10, every 30s
+    (1000, 50, 60),  # ≤1000 pending → batch=50, every 60s
 ]
 _DEFAULT_BATCH = (100, 120)  # >1000 pending → batch=100, every 120s
 
@@ -45,6 +44,7 @@ def _adaptive_params(queue_depth: int) -> tuple[int, int]:
 
 # ─── Circuit Breaker ────────────────────────────────────────────
 
+
 class CircuitBreaker:
     """
     Per-peer circuit breaker.
@@ -54,6 +54,7 @@ class CircuitBreaker:
       OPEN       → peer considered down, no requests sent
       HALF_OPEN  → probe request sent, waiting for result
     """
+
     _DEFAULT_FAILURE_THRESHOLD = 3
     _DEFAULT_RECOVERY_TIMEOUT = 300
 
@@ -91,10 +92,7 @@ class CircuitBreaker:
             if self._failures >= self.failure_threshold and self._state == "CLOSED":
                 self._state = "OPEN"
                 self._opened_at = time.time()
-                logger.warning(
-                    f"Circuit OPEN for {self.peer_url} "
-                    f"after {self._failures} consecutive failures"
-                )
+                logger.warning(f"Circuit OPEN for {self.peer_url} after {self._failures} consecutive failures")
 
     @property
     def state(self) -> str:
@@ -102,6 +100,7 @@ class CircuitBreaker:
 
 
 # ─── Sync Worker ────────────────────────────────────────────────
+
 
 class SyncWorker:
     """
@@ -120,7 +119,7 @@ class SyncWorker:
       - Persistent queue: survives process restarts
     """
 
-    def __init__(self, store: "LocalStore", peer_urls: list[str]):
+    def __init__(self, store: LocalStore, peer_urls: list[str]):
         self.store = store
         self.peer_urls = peer_urls
         self._stop = threading.Event()
@@ -129,9 +128,7 @@ class SyncWorker:
             name="kcp-sync-worker",
             daemon=True,
         )
-        self._circuits: dict[str, CircuitBreaker] = {
-            url: CircuitBreaker(url) for url in peer_urls
-        }
+        self._circuits: dict[str, CircuitBreaker] = {url: CircuitBreaker(url) for url in peer_urls}
         self._session = requests.Session()
         self._session.headers.update({"X-KCP-Client": "kcp-python/0.2.0"})
 
@@ -181,10 +178,7 @@ class SyncWorker:
     def _tick(self):
         """One sync cycle: fetch pending items, push, sleep."""
         # Estimate queue depth to pick batch params
-        queue_depth = sum(
-            v.get("pending", 0)
-            for v in self.store.sync_queue_stats().values()
-        )
+        queue_depth = sum(v.get("pending", 0) for v in self.store.sync_queue_stats().values())
         batch_size, sleep_secs = _adaptive_params(queue_depth)
 
         items = self.store.dequeue_pending_sync(batch_size)
@@ -229,18 +223,15 @@ class SyncWorker:
             # Peer returned accepted=True or accepted=False (duplicate/invalid)
             # Both count as delivery — no retry needed
             self.store.ack_sync(queue_id)
-            
+
             # Record replication ACK (peer confirmed receipt)
             self.store.record_replication_ack(artifact_id, peer_url)
-            
+
             if circuit:
                 circuit.record_success()
 
             accepted = result.get("accepted", True)
-            logger.debug(
-                f"Synced {artifact_id[:8]}… → {peer_url} "
-                f"[accepted={accepted}]"
-            )
+            logger.debug(f"Synced {artifact_id[:8]}… → {peer_url} [accepted={accepted}]")
 
         except requests.exceptions.ConnectionError as e:
             self._handle_failure(queue_id, circuit, f"connection error: {e}")

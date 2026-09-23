@@ -28,11 +28,9 @@ Identity management:
 __version__ = "0.2.0"
 __protocol_version__ = "1"
 
-from .models import KnowledgeArtifact, Lineage, ACL, SearchResult, SearchResponse
-from .crypto import generate_keypair, sign_artifact, verify_artifact, hash_content
-from .store import LocalStore
-from .node import KCPNode
-from .vector_index import VectorIndex, VectorIndexError
+from .client import KCPClient
+from .crdt import GSet
+from .crypto import generate_keypair, hash_content, sign_artifact, verify_artifact
 from .embeddings import (
     BaseEmbeddingProvider,
     CallableEmbeddingProvider,
@@ -44,19 +42,28 @@ from .embeddings import (
     resolve_embedding_provider,
 )
 from .hub import HubBackend
-from .client import KCPClient
-from .merkle import MerkleDAG, MerkleProof, verify_proof, LineageVerificationError
-from .crdt import GSet
-from .lineage_graph import LineageGraph, ForkPair, SyncProof, detect_forks
+from .lineage_graph import ForkPair, LineageGraph, SyncProof, detect_forks
+from .merkle import LineageVerificationError, MerkleDAG, MerkleProof, verify_proof
+from .models import ACL, KnowledgeArtifact, Lineage, SearchResponse, SearchResult
+from .node import KCPNode
+from .store import LocalStore
+from .vector_index import VectorIndex, VectorIndexError
 
 # Identity (optional import - requires mnemonic package)
 try:
     from .identity import (
-        create_identity,
-        recover_identity,
-        KCPIdentity,
-        IdentityStrength,
+        IdentityStrength as IdentityStrength,
     )
+    from .identity import (
+        KCPIdentity as KCPIdentity,
+    )
+    from .identity import (
+        create_identity as create_identity,
+    )
+    from .identity import (
+        recover_identity as recover_identity,
+    )
+
     _HAS_IDENTITY = True
 except ImportError:
     _HAS_IDENTITY = False
@@ -103,9 +110,11 @@ __all__ = [
 
 # Add identity exports if available
 if _HAS_IDENTITY:
-    __all__.extend([
-        "create_identity",
-        "recover_identity",
-        "KCPIdentity",
-        "IdentityStrength",
-    ])
+    __all__.extend(
+        [
+            "create_identity",
+            "recover_identity",
+            "KCPIdentity",
+            "IdentityStrength",
+        ]
+    )
