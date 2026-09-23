@@ -27,7 +27,7 @@ and Merkle proofs live in :mod:`kcp.lineage_graph` and :mod:`kcp.merkle`.
 
 from __future__ import annotations
 
-from typing import Hashable, Iterable, Iterator, Optional
+from collections.abc import Hashable, Iterable, Iterator
 
 
 class GSet:
@@ -43,7 +43,7 @@ class GSet:
 
     __slots__ = ("_elements",)
 
-    def __init__(self, elements: Optional[Iterable[Hashable]] = None):
+    def __init__(self, elements: Iterable[Hashable] | None = None):
         self._elements: set = set()
         if elements:
             self._elements.update(elements)
@@ -65,7 +65,7 @@ class GSet:
                 added += 1
         return added
 
-    def merge(self, other: "GSet") -> "GSet":
+    def merge(self, other: GSet) -> GSet:
         """
         Return the union of two G-Sets (does not mutate either operand).
 
@@ -75,7 +75,7 @@ class GSet:
         merged._elements |= other._elements
         return merged
 
-    def merge_in_place(self, other: "GSet") -> int:
+    def merge_in_place(self, other: GSet) -> int:
         """Union ``other`` into ``self``. Returns number of newly added elements."""
         before = len(self._elements)
         self._elements |= other._elements
@@ -110,10 +110,10 @@ class GSet:
 
     # ── operators ──
 
-    def __or__(self, other: "GSet") -> "GSet":
+    def __or__(self, other: GSet) -> GSet:
         return self.merge(other)
 
-    def __ior__(self, other: "GSet") -> "GSet":
+    def __ior__(self, other: GSet) -> GSet:
         self.merge_in_place(other)
         return self
 
@@ -123,7 +123,7 @@ class GSet:
         return {"type": "g-set", "elements": self.elements()}
 
     @classmethod
-    def from_dict(cls, data: dict) -> "GSet":
+    def from_dict(cls, data: dict) -> GSet:
         return cls(data.get("elements", []))
 
     def __repr__(self) -> str:

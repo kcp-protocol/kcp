@@ -4,8 +4,10 @@ Entry point for `python -m kcp_mcp_server`
 
 import asyncio
 import sys
-from .server import create_server
+
 from mcp.server.stdio import stdio_server
+
+from .server import create_server
 
 
 def main():

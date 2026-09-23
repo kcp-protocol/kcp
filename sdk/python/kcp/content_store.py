@@ -27,12 +27,9 @@ Design decisions:
 
 from __future__ import annotations
 
-import os
-import shutil
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("kcp.content_store")
 
@@ -61,7 +58,7 @@ class ContentStore:
         self,
         content_hash: str,
         data: bytes,
-        timestamp: Optional[str] = None,
+        timestamp: str | None = None,
     ) -> Path:
         """
         Write content bytes to the filesystem shard.
@@ -95,14 +92,14 @@ class ContentStore:
             logger.warning("ContentStore: atomic write failed for %s: %s", content_hash[:8], e)
             try:
                 tmp.unlink(missing_ok=True)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("ContentStore: temp file cleanup failed: %s", exc)
             raise
 
         logger.debug(f"ContentStore: wrote {len(data)} bytes → {path.relative_to(self.base_dir)}")
         return path
 
-    def read(self, content_hash: str) -> Optional[bytes]:
+    def read(self, content_hash: str) -> bytes | None:
         """
         Read content bytes for a given hash.
 
@@ -148,7 +145,7 @@ class ContentStore:
             return True
         return False
 
-    def shard_path(self, content_hash: str, timestamp: Optional[str] = None) -> Path:
+    def shard_path(self, content_hash: str, timestamp: str | None = None) -> Path:
         """Return the expected shard path for a hash (may not exist yet)."""
         return self._path_for(content_hash, timestamp)
 
@@ -175,7 +172,7 @@ class ContentStore:
 
     # ─── Internal ──────────────────────────────────────────────
 
-    def _path_for(self, content_hash: str, timestamp: Optional[str] = None) -> Path:
+    def _path_for(self, content_hash: str, timestamp: str | None = None) -> Path:
         """Compute shard path: content/{year}/{month}/{day}/{hash}.bin"""
         if timestamp:
             try:
@@ -185,13 +182,7 @@ class ContentStore:
         else:
             dt = datetime.now(timezone.utc)
 
-        return (
-            self.content_root
-            / f"{dt.year:04d}"
-            / f"{dt.month:02d}"
-            / f"{dt.day:02d}"
-            / f"{content_hash}.bin"
-        )
+        return self.content_root / f"{dt.year:04d}" / f"{dt.month:02d}" / f"{dt.day:02d}" / f"{content_hash}.bin"
 
     # ── Hash index: a flat file mapping hash → relative shard path ──
     # Stored at <content_root>/.index — one line per hash.
@@ -202,7 +193,7 @@ class ContentStore:
     def _index_path(self) -> Path:
         return self.content_root / ".index"
 
-    def _find_by_index(self, content_hash: str) -> Optional[Path]:
+    def _find_by_index(self, content_hash: str) -> Path | None:
         """Look up hash in the flat index file. Returns absolute Path or None."""
         if not self._index_path.exists():
             return None
@@ -231,12 +222,12 @@ class ContentStore:
             return
         try:
             lines = self._index_path.read_text().splitlines(keepends=True)
-            kept = [l for l in lines if not l.startswith(content_hash + " ")]
+            kept = [line for line in lines if not line.startswith(content_hash + " ")]
             self._index_path.write_text("".join(kept))
         except Exception as e:
             logger.debug("ContentStore: index remove error: %s", e)
 
-    def _scan_for_hash(self, content_hash: str) -> Optional[Path]:
+    def _scan_for_hash(self, content_hash: str) -> Path | None:
         """Walk all shards looking for {hash}.bin. O(n) — last resort."""
         target = f"{content_hash}.bin"
         for path in self.content_root.rglob(target):

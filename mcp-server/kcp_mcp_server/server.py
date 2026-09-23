@@ -6,20 +6,17 @@ Implements the MCP server exposing KCPNode as tools.
 
 from __future__ import annotations
 
-import os
 import json
-import sys
+import os
 from typing import Any
 
 import mcp.types as types
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-
 from kcp import KCPNode
 from kcp.models import Lineage
-
+from mcp.server import Server
 
 # ─── Node Singleton ───────────────────────────────────────────
+
 
 def _create_node() -> KCPNode:
     return KCPNode(
@@ -31,6 +28,7 @@ def _create_node() -> KCPNode:
 
 
 # ─── Server Factory ───────────────────────────────────────────
+
 
 def create_server() -> Server:
     node = _create_node()
@@ -164,10 +162,7 @@ def create_server() -> Server:
             ),
             types.Tool(
                 name="kcp_list",
-                description=(
-                    "List recent knowledge artifacts. "
-                    "Optionally filter by tags."
-                ),
+                description=("List recent knowledge artifacts. Optionally filter by tags."),
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -209,10 +204,7 @@ def create_server() -> Server:
     # ── Call Tools ────────────────────────────────────────────
 
     @server.call_tool()
-    async def call_tool(
-        name: str, arguments: dict[str, Any]
-    ) -> list[types.TextContent]:
-
+    async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
         try:
             if name == "kcp_publish":
                 return await _kcp_publish(node, arguments)
@@ -229,20 +221,25 @@ def create_server() -> Server:
             elif name == "kcp_sync_status":
                 return await _kcp_sync_status(node, arguments)
             else:
-                return [types.TextContent(
-                    type="text",
-                    text=json.dumps({"error": f"Unknown tool: {name}"}),
-                )]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=json.dumps({"error": f"Unknown tool: {name}"}),
+                    )
+                ]
         except Exception as e:
-            return [types.TextContent(
-                type="text",
-                text=json.dumps({"error": str(e), "tool": name}),
-            )]
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps({"error": str(e), "tool": name}),
+                )
+            ]
 
     return server
 
 
 # ─── Tool Implementations ─────────────────────────────────────
+
 
 async def _kcp_publish(node: KCPNode, args: dict) -> list[types.TextContent]:
     title = args["title"]
@@ -314,14 +311,16 @@ async def _kcp_search(node: KCPNode, args: dict) -> list[types.TextContent]:
 
     results = []
     for r in response.results:
-        results.append({
-            "artifact_id": r.id,
-            "title": r.title,
-            "summary": r.summary,
-            "tags": getattr(r, "tags", []),
-            "score": round(r.relevance, 4) if r.relevance else None,
-            "kcp_uri": f"kcp://local/artifact/{r.id}",
-        })
+        results.append(
+            {
+                "artifact_id": r.id,
+                "title": r.title,
+                "summary": r.summary,
+                "tags": getattr(r, "tags", []),
+                "score": round(r.relevance, 4) if r.relevance else None,
+                "kcp_uri": f"kcp://local/artifact/{r.id}",
+            }
+        )
 
     result = {
         "query": query,
@@ -338,10 +337,12 @@ async def _kcp_get(node: KCPNode, args: dict) -> list[types.TextContent]:
 
     artifact = node.get(artifact_id)
     if not artifact:
-        return [types.TextContent(
-            type="text",
-            text=json.dumps({"error": f"Artifact not found: {artifact_id}"}),
-        )]
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps({"error": f"Artifact not found: {artifact_id}"}),
+            )
+        ]
 
     result: dict[str, Any] = {
         "artifact_id": artifact.id,
@@ -384,27 +385,28 @@ async def _kcp_lineage(node: KCPNode, args: dict) -> list[types.TextContent]:
     if not chain:
         artifact = node.get(artifact_id)
         if not artifact:
-            return [types.TextContent(
-                type="text",
-                text=json.dumps({"error": f"Artifact not found: {artifact_id}"}),
-            )]
+            return [
+                types.TextContent(
+                    type="text",
+                    text=json.dumps({"error": f"Artifact not found: {artifact_id}"}),
+                )
+            ]
         # Root artifact with no parents
-        chain = [{
-            "artifact_id": artifact.id,
-            "title": artifact.title,
-            "timestamp": artifact.timestamp,
-            "depth": 0,
-            "is_root": True,
-        }]
+        chain = [
+            {
+                "artifact_id": artifact.id,
+                "title": artifact.title,
+                "timestamp": artifact.timestamp,
+                "depth": 0,
+                "is_root": True,
+            }
+        ]
 
     result = {
         "artifact_id": artifact_id,
         "chain_length": len(chain),
         "chain": chain,
-        "description": (
-            f"Lineage has {len(chain)} artifact(s). "
-            "Root is at index 0, current artifact at the end."
-        ),
+        "description": (f"Lineage has {len(chain)} artifact(s). Root is at index 0, current artifact at the end."),
     }
     return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
 
@@ -417,15 +419,17 @@ async def _kcp_list(node: KCPNode, args: dict) -> list[types.TextContent]:
 
     items = []
     for a in artifacts:
-        items.append({
-            "artifact_id": a.id,
-            "title": a.title,
-            "format": a.format,
-            "tags": a.tags,
-            "visibility": a.visibility,
-            "timestamp": a.timestamp,
-            "kcp_uri": f"kcp://local/artifact/{a.id}",
-        })
+        items.append(
+            {
+                "artifact_id": a.id,
+                "title": a.title,
+                "format": a.format,
+                "tags": a.tags,
+                "visibility": a.visibility,
+                "timestamp": a.timestamp,
+                "kcp_uri": f"kcp://local/artifact/{a.id}",
+            }
+        )
 
     result = {
         "total": len(items),

@@ -14,10 +14,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Tuple
 
 
-def generate_keypair() -> Tuple[bytes, bytes]:
+def generate_keypair() -> tuple[bytes, bytes]:
     """
     Generate an Ed25519 keypair.
 
@@ -26,15 +25,13 @@ def generate_keypair() -> Tuple[bytes, bytes]:
     """
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
         private_key = Ed25519PrivateKey.generate()
         private_bytes = private_key.private_bytes_raw()
         public_bytes = private_key.public_key().public_bytes_raw()
         return private_bytes, public_bytes
-    except ImportError:
-        raise ImportError(
-            "KCP crypto requires 'cryptography' package. "
-            "Install with: pip install cryptography"
-        )
+    except ImportError as exc:
+        raise ImportError("KCP crypto requires 'cryptography' package. Install with: pip install cryptography") from exc
 
 
 def sign_artifact(artifact_dict: dict, private_key: bytes) -> str:
@@ -50,11 +47,8 @@ def sign_artifact(artifact_dict: dict, private_key: bytes) -> str:
     """
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-    except ImportError:
-        raise ImportError(
-            "KCP crypto requires 'cryptography' package. "
-            "Install with: pip install cryptography"
-        )
+    except ImportError as exc:
+        raise ImportError("KCP crypto requires 'cryptography' package. Install with: pip install cryptography") from exc
 
     # Remove signature field if present
     payload = {k: v for k, v in artifact_dict.items() if k != "signature"}
@@ -81,13 +75,10 @@ def verify_artifact(artifact_dict: dict, public_key: bytes) -> bool:
         True if signature is valid, False otherwise
     """
     try:
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
         from cryptography.exceptions import InvalidSignature
-    except ImportError:
-        raise ImportError(
-            "KCP crypto requires 'cryptography' package. "
-            "Install with: pip install cryptography"
-        )
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    except ImportError as exc:
+        raise ImportError("KCP crypto requires 'cryptography' package. Install with: pip install cryptography") from exc
 
     signature_hex = artifact_dict.get("signature", "")
     if not signature_hex:
@@ -137,8 +128,8 @@ def derive_content_key(private_key: bytes, artifact_id: str) -> bytes:
     Returns:
         32-byte AES-256 key
     """
-    from cryptography.hazmat.primitives.kdf.hkdf import HKDF
     from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
     hkdf = HKDF(
         algorithm=hashes.SHA256(),
@@ -164,6 +155,7 @@ def encrypt_content(content: bytes, key: bytes) -> bytes:
         Encrypted blob with magic prefix
     """
     import os
+
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
     nonce = os.urandom(12)
@@ -193,8 +185,8 @@ def decrypt_content(blob: bytes, key: bytes) -> bytes:
     if not blob[:magic_len] == _ENCRYPTION_MAGIC:
         raise ValueError("Not a KCP encrypted blob (missing KCPENC1 magic)")
 
-    nonce = blob[magic_len: magic_len + 12]
-    ciphertext = blob[magic_len + 12:]
+    nonce = blob[magic_len : magic_len + 12]
+    ciphertext = blob[magic_len + 12 :]
 
     aesgcm = AESGCM(key)
     return aesgcm.decrypt(nonce, ciphertext, None)
@@ -202,4 +194,4 @@ def decrypt_content(blob: bytes, key: bytes) -> bytes:
 
 def is_encrypted(blob: bytes) -> bool:
     """Return True if the blob was encrypted by KCP."""
-    return blob[:len(_ENCRYPTION_MAGIC)] == _ENCRYPTION_MAGIC
+    return blob[: len(_ENCRYPTION_MAGIC)] == _ENCRYPTION_MAGIC
